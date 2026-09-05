@@ -141,3 +141,15 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# World Builder local content — never commit creator data or recovery journals.
+*.loka
+*.loka-worklog
+*.lokalog
+worlds/
+worklogs/
+
+# Local machine and deployment-link state.
+.DS_Store
+.vercel/
+.idea/
