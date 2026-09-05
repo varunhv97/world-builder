@@ -38,6 +38,7 @@ These documents are public, reviewed snapshots. The private Obsidian project vau
 - [Technical specification](docs/planning/technical-specification.md)
 - [UI/UX specification](docs/planning/ui-ux-specification.md)
 - [Acceptance and validation plan](docs/planning/acceptance-and-validation-plan.md)
+- [LOKA world file format](docs/loka-format.md)
 
 ## Engineering principles
 
