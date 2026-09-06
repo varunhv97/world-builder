@@ -11,6 +11,11 @@ export function generateTerrain(seed: number, dimension = LOCAL_TERRAIN_DIMENSIO
 }
 
 export function sculptTerrain(heights: readonly number[], dimension: number, column: number, row: number, delta: number): number[] {
-  const index = row * dimension + column
-  return heights.map((height, cellIndex) => cellIndex === index ? height + delta : height)
+  return heights.map((height, index) => {
+    const x = index % dimension
+    const y = Math.floor(index / dimension)
+    const distance = Math.hypot(x - column, y - row)
+    if (distance > 2) return height
+    return height + Math.round(delta * (1 - distance / 2))
+  })
 }

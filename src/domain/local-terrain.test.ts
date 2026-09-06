@@ -8,7 +8,7 @@ describe('local terrain', () => {
   })
   it('sculpts only the requested cell without mutating the input', () => {
     const before = [0, 0, 0, 0]
-    expect(sculptTerrain(before, 2, 1, 0, 35)).toEqual([0, 35, 0, 0])
+    expect(sculptTerrain(before, 2, 1, 0, 35)).toEqual([18, 35, 10, 18])
     expect(before).toEqual([0, 0, 0, 0])
   })
 })

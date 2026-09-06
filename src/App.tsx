@@ -34,7 +34,7 @@ function App() {
     const { column, row } = coordinate
     if (tool === 'paint') { setMaterials((current) => current.map((material, index) => index === row * DIMENSION + column ? (material + 1) % 3 : material)); return }
     setUndo((history) => [...history, heights]); setRedo([])
-    setHeights((current) => sculptTerrain(current, DIMENSION, column, row, tool === 'raise' ? 35 : -35))
+    setHeights((current) => sculptTerrain(current, DIMENSION, column, row, tool === 'raise' ? 220 : -220))
   }
   const undoEdit = () => { const previous = undo.at(-1); if (previous) { setUndo((items) => items.slice(0, -1)); setRedo((items) => [...items, heights]); setHeights(previous) } }
   const redoEdit = () => { const next = redo.at(-1); if (next) { setRedo((items) => items.slice(0, -1)); setUndo((items) => [...items, heights]); setHeights(next) } }
