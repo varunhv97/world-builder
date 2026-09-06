@@ -53,7 +53,7 @@ export class WorldRenderer {
     const positions = geometry.attributes['position']
     if (positions === undefined) throw new Error('Terrain geometry has no position attribute.')
     for (let index = 0; index < positions.count; index += 1) positions.setZ(index, terrain.elevations[index]! / 500)
-    positions.needsUpdate = true; geometry.rotateX(-Math.PI / 2); geometry.computeVertexNormals()
+    positions.needsUpdate = true; geometry.rotateX(-Math.PI / 2); geometry.computeVertexNormals(); geometry.computeBoundingBox(); geometry.computeBoundingSphere()
     const colors = new Float32Array(positions.count * 3)
     for (let index = 0; index < positions.count; index += 1) {
       const material = terrain.materialIndices?.[index] ?? 1
@@ -91,7 +91,7 @@ export class WorldRenderer {
     if (hit?.uv === undefined) return undefined
     return {
       column: Math.min(dimension - 1, Math.max(0, Math.floor(hit.uv.x * dimension))),
-      row: Math.min(dimension - 1, Math.max(0, Math.floor(hit.uv.y * dimension))),
+      row: Math.min(dimension - 1, Math.max(0, Math.floor((1 - hit.uv.y) * dimension))),
     }
   }
 
