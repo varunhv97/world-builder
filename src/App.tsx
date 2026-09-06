@@ -20,8 +20,8 @@ function App() {
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return
     const renderer = new WorldRenderer(canvas); rendererRef.current = renderer
-    const draw = () => renderer.render(canvas.clientWidth, canvas.clientHeight)
-    draw(); const observer = new ResizeObserver(draw); observer.observe(canvas)
+    const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight)
+    resize(); renderer.start(); const observer = new ResizeObserver(resize); observer.observe(canvas)
     return () => { observer.disconnect(); renderer.dispose() }
   }, [])
   useEffect(() => {
@@ -34,7 +34,7 @@ function App() {
     }
     window.addEventListener('keydown', onKeyDown); return () => window.removeEventListener('keydown', onKeyDown)
   }, [heights, redo, undo])
-  useEffect(() => { rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials }); localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights })); rendererRef.current?.render(canvasRef.current?.clientWidth ?? 1, canvasRef.current?.clientHeight ?? 1) }, [heights, materials])
+  useEffect(() => { rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials }); localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights })) }, [heights, materials])
   const sculpt = (event: React.PointerEvent<HTMLCanvasElement>, delta: number) => {
     const rect = event.currentTarget.getBoundingClientRect(); const x = Math.min(DIMENSION - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * DIMENSION))); const y = Math.min(DIMENSION - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * DIMENSION)))
     if (paintMode) { setMaterials((current) => current.map((material, index) => index === y * DIMENSION + x ? (material + 1) % 3 : material)); return }

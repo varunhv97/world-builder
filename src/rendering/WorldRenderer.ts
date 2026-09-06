@@ -14,6 +14,9 @@ export class WorldRenderer {
   readonly #camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1_000)
   readonly #controls: OrbitControls
   #terrain?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
+  #animationFrame?: number
+  #width = 1
+  #height = 1
 
   constructor(canvas: HTMLCanvasElement) {
     this.#renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -47,9 +50,26 @@ export class WorldRenderer {
     this.#scene.add(this.#terrain)
   }
 
-  render(width: number, height: number): void {
-    this.#renderer.setSize(width, height, false); this.#camera.aspect = width / height; this.#camera.updateProjectionMatrix(); this.#controls.update(); this.#renderer.render(this.#scene, this.#camera)
+  resize(width: number, height: number): void {
+    this.#width = Math.max(1, width)
+    this.#height = Math.max(1, height)
+    this.#renderer.setSize(this.#width, this.#height, false)
+    this.#camera.aspect = this.#width / this.#height
+    this.#camera.updateProjectionMatrix()
   }
 
-  dispose(): void { this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#renderer.dispose() }
+  start(): void {
+    if (this.#animationFrame !== undefined) return
+    const renderFrame = () => {
+      this.#controls.update()
+      this.#renderer.render(this.#scene, this.#camera)
+      this.#animationFrame = requestAnimationFrame(renderFrame)
+    }
+    renderFrame()
+  }
+
+  dispose(): void {
+    if (this.#animationFrame !== undefined) cancelAnimationFrame(this.#animationFrame)
+    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#renderer.dispose()
+  }
 }
