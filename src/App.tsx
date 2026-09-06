@@ -24,6 +24,16 @@ function App() {
     draw(); const observer = new ResizeObserver(draw); observer.observe(canvas)
     return () => { observer.disconnect(); renderer.dispose() }
   }, [])
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) { const next = redo.at(-1); if (next) { setRedo((items) => items.slice(0, -1)); setUndo((items) => [...items, heights]); setHeights(next) } }
+        else { const previous = undo.at(-1); if (previous) { setUndo((items) => items.slice(0, -1)); setRedo((items) => [...items, heights]); setHeights(previous) } }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown); return () => window.removeEventListener('keydown', onKeyDown)
+  }, [heights, redo, undo])
   useEffect(() => { rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials }); localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights })); rendererRef.current?.render(canvasRef.current?.clientWidth ?? 1, canvasRef.current?.clientHeight ?? 1) }, [heights, materials])
   const sculpt = (event: React.PointerEvent<HTMLCanvasElement>, delta: number) => {
     const rect = event.currentTarget.getBoundingClientRect(); const x = Math.min(DIMENSION - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * DIMENSION))); const y = Math.min(DIMENSION - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * DIMENSION)))
