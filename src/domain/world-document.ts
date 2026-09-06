@@ -21,6 +21,10 @@ export class WorldDocument {
     return this.#terrainChunks.size
   }
 
+  terrainChunks(): readonly TerrainChunk[] {
+    return [...this.#terrainChunks.values()]
+  }
+
   terrainChunkAt(column: number, row: number): TerrainChunk | undefined {
     return this.#terrainChunks.get(terrainChunkKey(column, row))
   }
