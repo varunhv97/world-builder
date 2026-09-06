@@ -7,6 +7,10 @@ export interface CommandResult {
   readonly changedTerrainChunks: readonly { readonly column: number; readonly row: number }[]
 }
 
+export interface AppliedCommand extends CommandResult {
+  readonly inverse: WorldCommand
+}
+
 /** A serializable domain operation; UI and renderers must not mutate documents directly. */
 export interface WorldCommand {
   readonly type: string
@@ -51,6 +55,24 @@ export class RemoveTerrainChunkCommand implements WorldCommand {
       changedTerrainChunks: [{ column: this.column, row: this.row }],
     }
   }
+}
+
+export function applyCommandWithInverse(document: WorldDocument, command: WorldCommand): AppliedCommand {
+  if (command instanceof ReplaceTerrainChunkCommand) {
+    const { column, row } = command.chunk.coordinate
+    const previous = document.terrainChunkAt(column, row)
+    const result = command.apply(document)
+    return { ...result, inverse: previous === undefined ? new RemoveTerrainChunkCommand(column, row) : new ReplaceTerrainChunkCommand(previous) }
+  }
+
+  if (command instanceof RemoveTerrainChunkCommand) {
+    const previous = document.terrainChunkAt(command.column, command.row)
+    const result = command.apply(document)
+    if (previous === undefined) throw new LokaFormatError('Cannot remove terrain that does not exist.')
+    return { ...result, inverse: new ReplaceTerrainChunkCommand(previous) }
+  }
+
+  throw new LokaFormatError(`No inverse strategy is registered for ${command.type}.`)
 }
 
 export interface CommandTransaction {
