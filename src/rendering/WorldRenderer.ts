@@ -14,7 +14,12 @@ export class WorldRenderer {
   readonly #camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1_000)
   readonly #controls: OrbitControls
   readonly #substrate: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>
-  readonly #grid = new THREE.GridHelper(10, 8, '#7a6650', '#9e8b75')
+  readonly #gridMaterial = new THREE.LineBasicMaterial({ color: '#543b76', depthTest: false, depthWrite: false, opacity: 0.9, transparent: true })
+  readonly #grid = new THREE.LineSegments(new THREE.BufferGeometry(), this.#gridMaterial)
+  readonly #brush = new THREE.Mesh(
+    new THREE.RingGeometry(0.9, 1, 48),
+    new THREE.MeshBasicMaterial({ color: '#563b91', depthTest: false, depthWrite: false, opacity: 0.95, side: THREE.DoubleSide, transparent: true }),
+  )
   #terrain?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
   #animationFrame?: number
   #width = 1
@@ -37,8 +42,12 @@ export class WorldRenderer {
     this.#substrate.position.y = -1.15
     this.#scene.add(this.#substrate)
     this.#grid.visible = false
-    this.#grid.position.y = 0.035
+    this.#grid.renderOrder = 1
     this.#scene.add(this.#grid)
+    this.#brush.rotation.x = -Math.PI / 2
+    this.#brush.renderOrder = 2
+    this.#brush.visible = false
+    this.#scene.add(this.#brush)
     this.#camera.position.set(11, 12, 11)
     this.#camera.lookAt(0, 0, 0)
     this.#controls = new OrbitControls(this.#camera, canvas)
@@ -60,6 +69,20 @@ export class WorldRenderer {
     this.#grid.visible = isVisible
   }
 
+  showBrushAt(clientX: number, clientY: number, bounds: DOMRect, radius: number, dimension: number): void {
+    const hit = this.#terrainHitAt(clientX, clientY, bounds)
+    if (hit === undefined) { this.hideBrush(); return }
+    this.#brush.position.copy(hit.point)
+    this.#brush.position.y += 0.05
+    const worldRadius = radius * (10 / (dimension - 1))
+    this.#brush.scale.setScalar(worldRadius)
+    this.#brush.visible = true
+  }
+
+  hideBrush(): void {
+    this.#brush.visible = false
+  }
+
   setTerrain(terrain: RenderTerrain): void {
     this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#scene.remove(this.#terrain!)
     const geometry = new THREE.PlaneGeometry(10, 10, terrain.dimension - 1, terrain.dimension - 1)
@@ -75,6 +98,7 @@ export class WorldRenderer {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     this.#terrain = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true }))
     this.#scene.add(this.#terrain)
+    this.#updateGrid(terrain)
   }
 
   resize(width: number, height: number): void {
@@ -96,11 +120,7 @@ export class WorldRenderer {
   }
 
   terrainCoordinateAt(clientX: number, clientY: number, bounds: DOMRect, dimension: number): { readonly column: number; readonly row: number } | undefined {
-    if (this.#terrain === undefined) return undefined
-    this.#pointer.x = ((clientX - bounds.left) / bounds.width) * 2 - 1
-    this.#pointer.y = -((clientY - bounds.top) / bounds.height) * 2 + 1
-    this.#raycaster.setFromCamera(this.#pointer, this.#camera)
-    const hit = this.#raycaster.intersectObject(this.#terrain, false)[0]
+    const hit = this.#terrainHitAt(clientX, clientY, bounds)
     if (hit?.uv === undefined) return undefined
     return {
       column: Math.min(dimension - 1, Math.max(0, Math.floor(hit.uv.x * dimension))),
@@ -108,8 +128,34 @@ export class WorldRenderer {
     }
   }
 
+  #terrainHitAt(clientX: number, clientY: number, bounds: DOMRect): THREE.Intersection | undefined {
+    if (this.#terrain === undefined) return undefined
+    this.#pointer.x = ((clientX - bounds.left) / bounds.width) * 2 - 1
+    this.#pointer.y = -((clientY - bounds.top) / bounds.height) * 2 + 1
+    this.#raycaster.setFromCamera(this.#pointer, this.#camera)
+    return this.#raycaster.intersectObject(this.#terrain, false)[0]
+  }
+
+  #updateGrid(terrain: RenderTerrain): void {
+    const gridLines = 8
+    const vertices: number[] = []
+    const addPoint = (column: number, row: number) => {
+      const index = row * terrain.dimension + column
+      vertices.push(-5 + (column / (terrain.dimension - 1)) * 10, terrain.elevations[index]! / 500 + 0.04, -5 + (row / (terrain.dimension - 1)) * 10)
+    }
+    for (let line = 0; line <= gridLines; line += 1) {
+      const index = Math.round((line / gridLines) * (terrain.dimension - 1))
+      for (let point = 0; point < terrain.dimension - 1; point += 1) { addPoint(point, index); addPoint(point + 1, index) }
+      for (let point = 0; point < terrain.dimension - 1; point += 1) { addPoint(index, point); addPoint(index, point + 1) }
+    }
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+    this.#grid.geometry.dispose()
+    this.#grid.geometry = geometry
+  }
+
   dispose(): void {
     if (this.#animationFrame !== undefined) cancelAnimationFrame(this.#animationFrame)
-    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#grid.geometry.dispose(); (this.#grid.material as THREE.Material).dispose(); this.#renderer.dispose()
+    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#grid.geometry.dispose(); this.#gridMaterial.dispose(); this.#brush.geometry.dispose(); (this.#brush.material as THREE.Material).dispose(); this.#renderer.dispose()
   }
 }
