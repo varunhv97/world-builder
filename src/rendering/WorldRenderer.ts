@@ -33,7 +33,7 @@ export class WorldRenderer {
       new THREE.BoxGeometry(10.18, 0.72, 10.18),
       new THREE.MeshStandardMaterial({ color: '#4c3428', roughness: 0.95 }),
     )
-    this.#substrate.position.y = -0.5
+    this.#substrate.position.y = -1.15
     this.#scene.add(this.#substrate)
     this.#camera.position.set(11, 12, 11)
     this.#camera.lookAt(0, 0, 0)

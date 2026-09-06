@@ -88,6 +88,9 @@ button:focus-visible { outline: 3px solid #553b90; outline-offset: 3px; }
 .action-row .quiet-action:last-child { border-radius: 0 .55rem .55rem 0; }
 .primary-action { cursor: pointer; }
 .primary-action { background: var(--color-accent); border: 1px solid var(--color-accent); color: white; margin-top: .5rem; width: 100%; }
+.brush-control { color: var(--color-muted); display: grid; font-size: .8rem; font-weight: 700; gap: .45rem; margin: .5rem 0; }
+.brush-control output { color: var(--color-ink); justify-self: end; margin-top: -1.35rem; }
+.brush-control input { accent-color: var(--color-accent); cursor: pointer; width: 100%; }
 
 .foundation-card h2 {
   color: var(--color-ink);
