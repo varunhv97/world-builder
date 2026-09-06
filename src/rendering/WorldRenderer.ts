@@ -30,6 +30,8 @@ export class WorldRenderer {
     this.#camera.lookAt(0, 0, 0)
     this.#controls = new OrbitControls(this.#camera, canvas)
     this.#controls.enableDamping = true
+    this.#controls.minPolarAngle = Math.PI * 0.18
+    this.#controls.maxPolarAngle = Math.PI * 0.47
     this.#controls.target.set(0, 0, 0)
   }
 
