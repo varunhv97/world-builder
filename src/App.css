@@ -79,9 +79,9 @@ button:focus-visible { outline: 3px solid #553b90; outline-offset: 3px; }
 .tool-button.is-active span { color: white; }
 .tool-divider { background: var(--color-line); height: 1px; margin: .15rem .35rem; }
 .inspector-kicker { color: var(--color-accent); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.action-row { display: flex; gap: .5rem; }
+.action-row { display: flex; gap: .35rem; width: fit-content; }
 .quiet-action, .primary-action { border-radius: .55rem; font-weight: 700; padding: .65rem .8rem; }
-.quiet-action { background: transparent; border: 1px solid var(--color-line); color: var(--color-ink); }
+.quiet-action { background: transparent; border: 1px solid var(--color-line); color: var(--color-ink); min-width: 0; padding-inline: .85rem; }
 .primary-action { background: var(--color-accent); border: 1px solid var(--color-accent); color: white; margin-top: .5rem; width: 100%; }
 
 .foundation-card h2 {
