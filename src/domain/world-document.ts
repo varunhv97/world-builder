@@ -32,6 +32,15 @@ export class WorldDocument {
 
     return new WorldDocument(this.#bootstrap, [...nextChunks, chunk])
   }
+
+  withoutTerrainChunk(column: number, row: number): WorldDocument {
+    return new WorldDocument(
+      this.#bootstrap,
+      [...this.#terrainChunks.values()].filter(
+        (chunk) => chunk.coordinate.column !== column || chunk.coordinate.row !== row,
+      ),
+    )
+  }
 }
 
 function indexTerrainChunks(chunks: readonly TerrainChunk[]): ReadonlyMap<string, TerrainChunk> {

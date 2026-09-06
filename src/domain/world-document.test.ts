@@ -16,4 +16,13 @@ describe('WorldDocument', () => {
     expect(original.terrainChunkCount).toBe(0)
     expect(changed.terrainChunkAt(0, 0)?.elevationAt(0, 0)).toBe(42)
   })
+
+  it('removes terrain without mutating the source document', () => {
+    const chunk = createEmptyTerrainChunk({ column: 0, row: 0 }, bootstrap.terrainGrid, 1)
+    const source = new WorldDocument(bootstrap, [chunk])
+    const changed = source.withoutTerrainChunk(0, 0)
+
+    expect(source.terrainChunkCount).toBe(1)
+    expect(changed.terrainChunkCount).toBe(0)
+  })
 })

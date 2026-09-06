@@ -35,6 +35,24 @@ export class ReplaceTerrainChunkCommand implements WorldCommand {
   }
 }
 
+export class RemoveTerrainChunkCommand implements WorldCommand {
+  readonly type = 'terrain.remove-chunk'
+  readonly column: number
+  readonly row: number
+
+  constructor(column: number, row: number) {
+    this.column = column
+    this.row = row
+  }
+
+  apply(document: WorldDocument): CommandResult {
+    return {
+      document: document.withoutTerrainChunk(this.column, this.row),
+      changedTerrainChunks: [{ column: this.column, row: this.row }],
+    }
+  }
+}
+
 export interface CommandTransaction {
   readonly id: string
   readonly commands: readonly WorldCommand[]
