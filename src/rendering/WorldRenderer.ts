@@ -13,6 +13,7 @@ export class WorldRenderer {
   readonly #scene = new THREE.Scene()
   readonly #camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1_000)
   readonly #controls: OrbitControls
+  readonly #substrate: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>
   #terrain?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
   #animationFrame?: number
   #width = 1
@@ -26,6 +27,12 @@ export class WorldRenderer {
     const light = new THREE.DirectionalLight('#fff0c2', 2.5)
     light.position.set(8, 10, 6)
     this.#scene.add(light)
+    this.#substrate = new THREE.Mesh(
+      new THREE.BoxGeometry(10.18, 0.72, 10.18),
+      new THREE.MeshStandardMaterial({ color: '#4c3428', roughness: 0.95 }),
+    )
+    this.#substrate.position.y = -0.5
+    this.#scene.add(this.#substrate)
     this.#camera.position.set(11, 12, 11)
     this.#camera.lookAt(0, 0, 0)
     this.#controls = new OrbitControls(this.#camera, canvas)
@@ -72,6 +79,6 @@ export class WorldRenderer {
 
   dispose(): void {
     if (this.#animationFrame !== undefined) cancelAnimationFrame(this.#animationFrame)
-    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#renderer.dispose()
+    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#renderer.dispose()
   }
 }
