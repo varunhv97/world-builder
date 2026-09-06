@@ -14,6 +14,7 @@ export class WorldRenderer {
   readonly #camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1_000)
   readonly #controls: OrbitControls
   readonly #substrate: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>
+  readonly #grid = new THREE.GridHelper(10, 8, '#7a6650', '#9e8b75')
   #terrain?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
   #animationFrame?: number
   #width = 1
@@ -35,6 +36,9 @@ export class WorldRenderer {
     )
     this.#substrate.position.y = -1.15
     this.#scene.add(this.#substrate)
+    this.#grid.visible = false
+    this.#grid.position.y = 0.035
+    this.#scene.add(this.#grid)
     this.#camera.position.set(11, 12, 11)
     this.#camera.lookAt(0, 0, 0)
     this.#controls = new OrbitControls(this.#camera, canvas)
@@ -44,7 +48,16 @@ export class WorldRenderer {
     this.#controls.maxDistance = 20
     this.#controls.minPolarAngle = Math.PI * 0.18
     this.#controls.maxPolarAngle = Math.PI * 0.47
+    this.#controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
     this.#controls.target.set(0, 0, 0)
+  }
+
+  setSculpting(isSculpting: boolean): void {
+    this.#controls.enabled = !isSculpting
+  }
+
+  setGridVisible(isVisible: boolean): void {
+    this.#grid.visible = isVisible
   }
 
   setTerrain(terrain: RenderTerrain): void {
@@ -97,6 +110,6 @@ export class WorldRenderer {
 
   dispose(): void {
     if (this.#animationFrame !== undefined) cancelAnimationFrame(this.#animationFrame)
-    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#renderer.dispose()
+    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#grid.geometry.dispose(); (this.#grid.material as THREE.Material).dispose(); this.#renderer.dispose()
   }
 }
