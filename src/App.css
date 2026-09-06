@@ -79,13 +79,14 @@ button:focus-visible { outline: 3px solid #553b90; outline-offset: 3px; }
 .tool-button.is-active span { color: white; }
 .tool-divider { background: var(--color-line); height: 1px; margin: .15rem .35rem; }
 .inspector-kicker { color: var(--color-accent); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.action-row { display: flex; gap: 0; width: fit-content; }
+.action-row { display: flex; gap: 0; width: 100%; }
 .quiet-action, .primary-action { border-radius: .55rem; font-weight: 700; padding: .65rem .8rem; }
 .quiet-action { background: transparent; border: 1px solid var(--color-line); color: var(--color-ink); min-width: 0; padding-inline: .85rem; }
-.action-row .quiet-action { border-radius: 0; }
+.action-row .quiet-action { border-radius: 0; cursor: pointer; flex: 1; }
 .action-row .quiet-action + .quiet-action { border-left: 0; }
 .action-row .quiet-action:first-child { border-radius: .55rem 0 0 .55rem; }
 .action-row .quiet-action:last-child { border-radius: 0 .55rem .55rem 0; }
+.primary-action { cursor: pointer; }
 .primary-action { background: var(--color-accent); border: 1px solid var(--color-accent); color: white; margin-top: .5rem; width: 100%; }
 
 .foundation-card h2 {
