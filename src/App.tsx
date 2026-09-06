@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { WorldRenderer } from './rendering/WorldRenderer'
 import { generateTerrain, LOCAL_TERRAIN_DIMENSION, sculptTerrain } from './domain/local-terrain'
+import { recoverTerrain } from './domain/local-recovery'
 import './App.css'
 
 const DIMENSION = LOCAL_TERRAIN_DIMENSION
@@ -10,7 +11,7 @@ const STORAGE_KEY = 'world-builder:milestone-1'
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<WorldRenderer | null>(null)
-  const [heights, setHeights] = useState<number[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')?.heights ?? generateTerrain(Date.now()))
+  const [heights, setHeights] = useState<number[]>(() => recoverTerrain(localStorage.getItem(STORAGE_KEY), DIMENSION ** 2) ?? generateTerrain(Date.now()))
   const [undo, setUndo] = useState<number[][]>([]); const [redo, setRedo] = useState<number[][]>([])
 
   useEffect(() => {
