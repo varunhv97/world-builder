@@ -18,6 +18,8 @@ export class WorldRenderer {
   #animationFrame?: number
   #width = 1
   #height = 1
+  readonly #raycaster = new THREE.Raycaster()
+  readonly #pointer = new THREE.Vector2()
 
   constructor(canvas: HTMLCanvasElement) {
     this.#renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -78,6 +80,19 @@ export class WorldRenderer {
       this.#animationFrame = requestAnimationFrame(renderFrame)
     }
     renderFrame()
+  }
+
+  terrainCoordinateAt(clientX: number, clientY: number, bounds: DOMRect, dimension: number): { readonly column: number; readonly row: number } | undefined {
+    if (this.#terrain === undefined) return undefined
+    this.#pointer.x = ((clientX - bounds.left) / bounds.width) * 2 - 1
+    this.#pointer.y = -((clientY - bounds.top) / bounds.height) * 2 + 1
+    this.#raycaster.setFromCamera(this.#pointer, this.#camera)
+    const hit = this.#raycaster.intersectObject(this.#terrain, false)[0]
+    if (hit?.uv === undefined) return undefined
+    return {
+      column: Math.min(dimension - 1, Math.max(0, Math.floor(hit.uv.x * dimension))),
+      row: Math.min(dimension - 1, Math.max(0, Math.floor(hit.uv.y * dimension))),
+    }
   }
 
   dispose(): void {

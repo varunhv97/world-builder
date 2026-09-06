@@ -29,9 +29,9 @@ function App() {
   }, [])
   useEffect(() => { rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials }); localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights })) }, [heights, materials])
   const edit = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const column = Math.min(DIMENSION - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * DIMENSION)))
-    const row = Math.min(DIMENSION - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * DIMENSION)))
+    const coordinate = rendererRef.current?.terrainCoordinateAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), DIMENSION)
+    if (coordinate === undefined) return
+    const { column, row } = coordinate
     if (tool === 'paint') { setMaterials((current) => current.map((material, index) => index === row * DIMENSION + column ? (material + 1) % 3 : material)); return }
     setUndo((history) => [...history, heights]); setRedo([])
     setHeights((current) => sculptTerrain(current, DIMENSION, column, row, tool === 'raise' ? 35 : -35))
