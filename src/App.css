@@ -58,6 +58,10 @@ h1 {
 .workspace { display: grid; gap: 1rem; grid-template-columns: 7rem minmax(0, 1fr) 18rem; }
 .workspace nav { display: grid; align-content: start; gap: .5rem; }
 .workspace aside { background: color-mix(in srgb, var(--color-paper) 78%, white); border: 1px solid var(--color-line); border-radius: 1rem; padding: 1.5rem; }
+button:focus-visible { outline: 3px solid #553b90; outline-offset: 3px; }
+@media (max-width: 64rem) { .workspace { grid-template-columns: 4.5rem minmax(0, 1fr); } .workspace aside { grid-column: 1 / -1; } }
+@media (max-width: 44rem) { .app-shell { padding: 1rem; } .workspace { grid-template-columns: 1fr; } .workspace nav { grid-template-columns: 1fr 1fr; } .world-canvas { height: 22rem; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 .app-shell > header { align-items: center; border-bottom: 1px solid var(--color-line); display: flex; justify-content: space-between; }
 .app-shell > header::after { color: #2e6d45; content: 'Saved locally'; font-size: .875rem; font-weight: 700; }
