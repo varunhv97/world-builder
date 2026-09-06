@@ -3,7 +3,7 @@
   display: grid;
   gap: 2rem;
   margin: 0 auto;
-  max-width: 70rem;
+  max-width: none;
   min-height: 100svh;
   padding: clamp(2rem, 8vw, 7rem) clamp(1.25rem, 5vw, 4rem);
 }
@@ -55,6 +55,9 @@ h1 {
   grid-template-columns: minmax(0, 1.5fr) minmax(14rem, 0.75fr);
   padding: clamp(1.5rem, 4vw, 3rem);
 }
+
+.app-shell > header { align-items: center; border-bottom: 1px solid var(--color-line); display: flex; justify-content: space-between; }
+.app-shell > header::after { color: #2e6d45; content: 'Saved locally'; font-size: .875rem; font-weight: 700; }
 
 .world-canvas { background: #cdd9d5; border-radius: .75rem; cursor: crosshair; height: 28rem; touch-action: none; width: 100%; }
 .foundation-card aside { display: grid; gap: 1rem; }
