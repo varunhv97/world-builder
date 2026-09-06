@@ -2,7 +2,7 @@
 
 A bold, local-first 3D world-building tool for creating, sculpting, and saving explorable worlds.
 
-> **Status: planning complete; implementation has not started.** This repository intentionally begins with the decisions that will guide the build.
+> **Status: active development.** The application foundation and the first tested LOKA/1 header codec are implemented; the interactive editor is not yet available.
 
 ## The idea
 
@@ -39,6 +39,26 @@ These documents are public, reviewed snapshots. The private Obsidian project vau
 - [UI/UX specification](docs/planning/ui-ux-specification.md)
 - [Acceptance and validation plan](docs/planning/acceptance-and-validation-plan.md)
 - [LOKA world file format](docs/loka-format.md)
+
+## Development
+
+Requirements: a current Node.js LTS release and npm.
+
+```bash
+npm install
+npm run dev
+```
+
+Before opening a pull request or publishing a change, run:
+
+```bash
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+The initial tests cover the fixed LOKA/1 header codec. As editor workflows are implemented, this suite will expand with document, persistence, integration, and end-to-end coverage described in the acceptance plan.
 
 ## Engineering principles
 
