@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 export interface RenderTerrain {
   readonly dimension: number
@@ -10,6 +11,7 @@ export class WorldRenderer {
   readonly #renderer: THREE.WebGLRenderer
   readonly #scene = new THREE.Scene()
   readonly #camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1_000)
+  readonly #controls: OrbitControls
   #terrain?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
 
   constructor(canvas: HTMLCanvasElement) {
@@ -22,6 +24,9 @@ export class WorldRenderer {
     this.#scene.add(light)
     this.#camera.position.set(11, 12, 11)
     this.#camera.lookAt(0, 0, 0)
+    this.#controls = new OrbitControls(this.#camera, canvas)
+    this.#controls.enableDamping = true
+    this.#controls.target.set(0, 0, 0)
   }
 
   setTerrain(terrain: RenderTerrain): void {
@@ -36,8 +41,8 @@ export class WorldRenderer {
   }
 
   render(width: number, height: number): void {
-    this.#renderer.setSize(width, height, false); this.#camera.aspect = width / height; this.#camera.updateProjectionMatrix(); this.#renderer.render(this.#scene, this.#camera)
+    this.#renderer.setSize(width, height, false); this.#camera.aspect = width / height; this.#camera.updateProjectionMatrix(); this.#controls.update(); this.#renderer.render(this.#scene, this.#camera)
   }
 
-  dispose(): void { this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#renderer.dispose() }
+  dispose(): void { this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#renderer.dispose() }
 }
