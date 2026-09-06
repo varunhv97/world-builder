@@ -60,6 +60,8 @@ npm run build
 
 The initial tests cover the fixed LOKA/1 header codec. As editor workflows are implemented, this suite will expand with document, persistence, integration, and end-to-end coverage described in the acceptance plan.
 
+Changes are developed as small, coherent commits and are pushed only after the relevant tests, lint, type check, and production build pass.
+
 ## Engineering principles
 
 - Favor clear, typed, testable modules over clever abstractions.
