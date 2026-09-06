@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 export interface RenderTerrain {
   readonly dimension: number
   readonly elevations: readonly number[]
+  readonly materialIndices?: readonly number[]
 }
 
 /** Thin project-owned boundary around Three.js for the editor's terrain scene. */
@@ -36,7 +37,13 @@ export class WorldRenderer {
     if (positions === undefined) throw new Error('Terrain geometry has no position attribute.')
     for (let index = 0; index < positions.count; index += 1) positions.setZ(index, terrain.elevations[index]! / 500)
     positions.needsUpdate = true; geometry.rotateX(-Math.PI / 2); geometry.computeVertexNormals()
-    this.#terrain = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: '#628c58', flatShading: true }))
+    const colors = new Float32Array(positions.count * 3)
+    for (let index = 0; index < positions.count; index += 1) {
+      const material = terrain.materialIndices?.[index] ?? 1
+      new THREE.Color(material === 0 ? '#3d79a8' : material === 2 ? '#a78a55' : '#628c58').toArray(colors, index * 3)
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    this.#terrain = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true }))
     this.#scene.add(this.#terrain)
   }
 
