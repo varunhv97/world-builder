@@ -1,64 +1,185 @@
-import { useEffect, useRef, useState } from 'react'
-import { generateTerrain, LOCAL_TERRAIN_DIMENSION, sculptTerrain } from './domain/local-terrain'
-import { recoverTerrain } from './domain/local-recovery'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import {
+  DEFAULT_TERRAIN_OPTIONS,
+  flattenTerrain,
+  generateTerrainFromOptions,
+  LOCAL_TERRAIN_DIMENSION,
+  paintTerrain,
+  sculptTerrain,
+  smoothTerrain,
+  type TerrainGenerationOptions,
+  type TerrainPreset,
+} from './domain/local-terrain'
+import { recoverEditorState } from './domain/local-recovery'
 import { WorldRenderer } from './rendering/WorldRenderer'
 import './App.css'
 
 const DIMENSION = LOCAL_TERRAIN_DIMENSION
-const STORAGE_KEY = 'world-builder:milestone-1'
-type TerrainTool = 'raise' | 'lower' | 'paint'
+const STORAGE_KEY = 'world-builder:editor-v2'
+
+type TerrainTool = 'raise' | 'lower' | 'smooth' | 'flatten' | 'paint'
+type Material = 0 | 1 | 2
+
+interface EditorSnapshot {
+  readonly heights: number[]
+  readonly materials: number[]
+}
+
+const MATERIALS: readonly { readonly id: Material; readonly label: string }[] = [
+  { id: 0, label: 'Water' },
+  { id: 1, label: 'Grass' },
+  { id: 2, label: 'Desert' },
+]
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<WorldRenderer | null>(null)
   const drawingRef = useRef(false)
-  const [heights, setHeights] = useState(() => recoverTerrain(localStorage.getItem(STORAGE_KEY), DIMENSION ** 2) ?? generateTerrain(Date.now()))
-  const [materials, setMaterials] = useState<number[]>(() => Array(DIMENSION ** 2).fill(1))
+  const flattenTargetRef = useRef(0)
+  const recovered = recoverEditorState(localStorage.getItem(STORAGE_KEY), DIMENSION ** 2)
+  const [generation, setGeneration] = useState<TerrainGenerationOptions>(DEFAULT_TERRAIN_OPTIONS)
+  const [heights, setHeights] = useState(() => recovered?.heights ?? generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS))
+  const [materials, setMaterials] = useState<number[]>(() => recovered?.materials ?? Array(DIMENSION ** 2).fill(1))
   const [tool, setTool] = useState<TerrainTool>('raise')
+  const [material, setMaterial] = useState<Material>(1)
   const [brushRadius, setBrushRadius] = useState(2)
+  const [brushStrength, setBrushStrength] = useState(0.7)
   const [gridVisible, setGridVisible] = useState(false)
-  const [undo, setUndo] = useState<number[][]>([])
-  const [redo, setRedo] = useState<number[][]>([])
+  const [undo, setUndo] = useState<EditorSnapshot[]>([])
+  const [redo, setRedo] = useState<EditorSnapshot[]>([])
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (canvas === null) return undefined
     const renderer = new WorldRenderer(canvas)
     rendererRef.current = renderer
     const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight)
-    resize(); renderer.start()
-    const observer = new ResizeObserver(resize); observer.observe(canvas)
-    return () => { observer.disconnect(); renderer.dispose() }
+    resize()
+    renderer.start()
+    const observer = new ResizeObserver(resize)
+    observer.observe(canvas)
+    return () => { observer.disconnect(); renderer.dispose(); rendererRef.current = null }
   }, [])
-  useEffect(() => { rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials }); localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights })) }, [heights, materials])
-  const edit = (event: React.PointerEvent<HTMLCanvasElement>) => {
+
+  useEffect(() => {
+    rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials })
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights, materials, generation }))
+  }, [generation, heights, materials])
+
+  const edit = (event: PointerEvent<HTMLCanvasElement>) => {
     const coordinate = rendererRef.current?.terrainCoordinateAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), DIMENSION)
     if (coordinate === undefined) return
     const { column, row } = coordinate
-    if (tool === 'paint') { setMaterials((current) => current.map((material, index) => index === row * DIMENSION + column ? (material + 1) % 3 : material)); return }
-    setHeights((current) => sculptTerrain(current, DIMENSION, column, row, tool === 'raise' ? 220 : -220, brushRadius))
+    if (tool === 'paint') {
+      setMaterials((current) => paintTerrain(current, DIMENSION, column, row, material, brushRadius))
+      return
+    }
+    setHeights((current) => {
+      const strength = brushStrength
+      if (tool === 'smooth') return smoothTerrain(current, DIMENSION, column, row, strength, brushRadius)
+      if (tool === 'flatten') return flattenTerrain(current, DIMENSION, column, row, flattenTargetRef.current, strength, brushRadius)
+      return sculptTerrain(current, DIMENSION, column, row, (tool === 'raise' ? 1 : -1) * 220 * strength, brushRadius)
+    })
   }
-  const beginStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
+
+  const beginStroke = (event: PointerEvent<HTMLCanvasElement>) => {
     if (event.button !== 0) return
+    const coordinate = rendererRef.current?.terrainCoordinateAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), DIMENSION)
+    if (coordinate === undefined) return
     drawingRef.current = true
     rendererRef.current?.setSculpting(true)
     if (tool !== 'paint') rendererRef.current?.showBrushAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), brushRadius, DIMENSION)
-    setUndo((history) => [...history, heights]); setRedo([])
+    flattenTargetRef.current = heights[coordinate.row * DIMENSION + coordinate.column] ?? 0
+    setUndo((history) => [...history, { heights, materials }])
+    setRedo([])
     event.currentTarget.setPointerCapture(event.pointerId)
     edit(event)
   }
-  const continueStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
+
+  const continueStroke = (event: PointerEvent<HTMLCanvasElement>) => {
     if (tool !== 'paint') rendererRef.current?.showBrushAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), brushRadius, DIMENSION)
     if (drawingRef.current) edit(event)
   }
+
   const endStroke = () => {
     drawingRef.current = false
     rendererRef.current?.setSculpting(false)
   }
-  const undoEdit = () => { const previous = undo.at(-1); if (previous) { setUndo((items) => items.slice(0, -1)); setRedo((items) => [...items, heights]); setHeights(previous) } }
-  const redoEdit = () => { const next = redo.at(-1); if (next) { setRedo((items) => items.slice(0, -1)); setUndo((items) => [...items, heights]); setHeights(next) } }
-  const toolCopy = tool === 'raise' ? ['Raise terrain', 'Hover to preview the brush, then press and drag to build land upward.'] : tool === 'lower' ? ['Lower terrain', 'Hover to preview the brush, then press and drag to carve land downward.'] : ['Surface paint', 'Hover to preview the brush, then press and drag to cycle grass, water, and desert.']
-  return <main className="app-shell"><header><div><p className="eyebrow">Local-first · autosaved</p><h1>World Builder</h1></div></header><section className="workspace"><nav className="tool-rail" aria-label="Terrain tools"><Tool active={tool === 'raise'} label="Raise" icon="↑" onClick={() => setTool('raise')} /><Tool active={tool === 'lower'} label="Lower" icon="↓" onClick={() => setTool('lower')} /><Tool active={tool === 'paint'} label="Surface" icon="◒" onClick={() => setTool('paint')} /><Tool active={gridVisible} label="Grid" icon="#" onClick={() => { setGridVisible((visible) => { const next = !visible; rendererRef.current?.setGridVisible(next); return next }) }} /></nav><canvas ref={canvasRef} className="world-canvas" onPointerDown={beginStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} onPointerLeave={() => rendererRef.current?.hideBrush()} /><aside className="inspector"><p className="inspector-kicker">Active tool</p><h2>{toolCopy[0]}</h2><p>{toolCopy[1]}</p>{tool !== 'paint' && <label className="brush-control">Brush area <output>{brushRadius}</output><input aria-label="Brush area" type="range" min="1" max="6" value={brushRadius} onChange={(event) => setBrushRadius(Number(event.target.value))} /></label>}<div className="action-row"><button className="quiet-action" type="button" disabled={!undo.length} onClick={undoEdit}>Undo</button><button className="quiet-action" type="button" disabled={!redo.length} onClick={redoEdit}>Redo</button></div><button className="primary-action" type="button" onClick={() => { if (confirm('Regenerate terrain? This can be undone.')) { setUndo((items) => [...items, heights]); setRedo([]); setHeights(generateTerrain(Date.now())) } }}>Regenerate terrain</button></aside></section></main>
+
+  const restoreSnapshot = (snapshot: EditorSnapshot) => { setHeights(snapshot.heights); setMaterials(snapshot.materials) }
+  const undoEdit = () => {
+    const previous = undo.at(-1)
+    if (previous === undefined) return
+    setUndo((items) => items.slice(0, -1))
+    setRedo((items) => [...items, { heights, materials }])
+    restoreSnapshot(previous)
+  }
+  const redoEdit = () => {
+    const next = redo.at(-1)
+    if (next === undefined) return
+    setRedo((items) => items.slice(0, -1))
+    setUndo((items) => [...items, { heights, materials }])
+    restoreSnapshot(next)
+  }
+  const regenerate = () => {
+    if (!confirm('Regenerate terrain? This can be undone.')) return
+    setUndo((items) => [...items, { heights, materials }])
+    setRedo([])
+    setHeights(generateTerrainFromOptions(generation))
+    setMaterials(Array(DIMENSION ** 2).fill(1))
+  }
+  const setGenerationControl = <Key extends keyof TerrainGenerationOptions>(key: Key, value: TerrainGenerationOptions[Key]) => {
+    setGeneration((current) => ({ ...current, [key]: value }))
+  }
+
+  const copy = toolCopy(tool)
+  return (
+    <main className="app-shell">
+      <header><div><p className="eyebrow">Local-first · autosaved</p><h1>World Builder</h1></div></header>
+      <section className="workspace">
+        <nav className="tool-rail" aria-label="Terrain tools">
+          <Tool active={tool === 'raise'} label="Raise" icon="↑" onClick={() => setTool('raise')} />
+          <Tool active={tool === 'lower'} label="Lower" icon="↓" onClick={() => setTool('lower')} />
+          <Tool active={tool === 'smooth'} label="Smooth" icon="≈" onClick={() => setTool('smooth')} />
+          <Tool active={tool === 'flatten'} label="Flatten" icon="━" onClick={() => setTool('flatten')} />
+          <Tool active={tool === 'paint'} label="Surface" icon="◒" onClick={() => setTool('paint')} />
+          <Tool active={gridVisible} label="Grid" icon="#" onClick={() => setGridVisible((visible) => { const next = !visible; rendererRef.current?.setGridVisible(next); return next })} />
+        </nav>
+        <canvas ref={canvasRef} className="world-canvas" onPointerDown={beginStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} onPointerLeave={() => rendererRef.current?.hideBrush()} />
+        <aside className="inspector">
+          <p className="inspector-kicker">Active tool</p><h2>{copy.title}</h2><p>{copy.description}</p>
+          <label className="brush-control">Brush area <output>{brushRadius}</output><input aria-label="Brush area" type="range" min="1" max="6" value={brushRadius} onChange={(event) => setBrushRadius(Number(event.target.value))} /></label>
+          {tool !== 'paint' && <label className="brush-control">Brush strength <output>{Math.round(brushStrength * 100)}%</output><input aria-label="Brush strength" type="range" min="0.1" max="1" step="0.1" value={brushStrength} onChange={(event) => setBrushStrength(Number(event.target.value))} /></label>}
+          {tool === 'paint' && <fieldset className="material-picker"><legend>Surface material</legend>{MATERIALS.map((option) => <label key={option.id}><input type="radio" name="material" checked={material === option.id} onChange={() => setMaterial(option.id)} />{option.label}</label>)}</fieldset>}
+          <div className="action-row"><button className="quiet-action" type="button" disabled={!undo.length} onClick={undoEdit}>Undo</button><button className="quiet-action" type="button" disabled={!redo.length} onClick={redoEdit}>Redo</button></div>
+          <GeneratorControls generation={generation} onChange={setGenerationControl} onRegenerate={regenerate} />
+        </aside>
+      </section>
+    </main>
+  )
 }
-function Tool({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) { return <button className={active ? 'tool-button is-active' : 'tool-button'} type="button" aria-pressed={active} onClick={onClick}><span>{icon}</span>{label}</button> }
+
+function toolCopy(tool: TerrainTool): { readonly title: string; readonly description: string } {
+  const copy: Record<TerrainTool, { readonly title: string; readonly description: string }> = {
+    raise: { title: 'Raise terrain', description: 'Hover to preview the brush, then press and drag to build land upward.' },
+    lower: { title: 'Lower terrain', description: 'Hover to preview the brush, then press and drag to carve land downward.' },
+    smooth: { title: 'Smooth terrain', description: 'Press and drag to soften sharp terrain within the selected brush.' },
+    flatten: { title: 'Flatten terrain', description: 'Press and drag to level terrain toward the elevation where the stroke begins.' },
+    paint: { title: 'Surface paint', description: 'Choose a material, then press and drag to paint the selected area.' },
+  }
+  return copy[tool]
+}
+
+function Tool({ active, icon, label, onClick }: { readonly active: boolean; readonly icon: string; readonly label: string; readonly onClick: () => void }) {
+  return <button className={active ? 'tool-button is-active' : 'tool-button'} type="button" aria-pressed={active} onClick={onClick}><span>{icon}</span>{label}</button>
+}
+
+function GeneratorControls({ generation, onChange, onRegenerate }: { readonly generation: TerrainGenerationOptions; readonly onChange: <Key extends keyof TerrainGenerationOptions>(key: Key, value: TerrainGenerationOptions[Key]) => void; readonly onRegenerate: () => void }) {
+  return <details className="generator-controls"><summary>Generation controls</summary><label>Preset<select value={generation.preset} onChange={(event) => onChange('preset', event.target.value as TerrainPreset)}><option value="archipelago">Archipelago</option><option value="highlands">Highlands</option><option value="plains">Plains</option></select></label><label>Seed<input aria-label="Seed" type="number" value={generation.seed} onChange={(event) => onChange('seed', Number(event.target.value))} /></label><RangeControl label="Landmass" value={generation.landmass} onChange={(value) => onChange('landmass', value)} /><RangeControl label="Mountains" value={generation.mountainIntensity} onChange={(value) => onChange('mountainIntensity', value)} /><RangeControl label="Water level" value={generation.waterLevel} onChange={(value) => onChange('waterLevel', value)} /><RangeControl label="Roughness" value={generation.roughness} onChange={(value) => onChange('roughness', value)} /><button className="primary-action" type="button" onClick={onRegenerate}>Regenerate terrain</button></details>
+}
+
+function RangeControl({ label, value, onChange }: { readonly label: string; readonly value: number; readonly onChange: (value: number) => void }) {
+  return <label>{label}<input aria-label={label} type="range" min="0" max="1" step="0.05" value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>
+}
+
 export default App
