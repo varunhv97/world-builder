@@ -32,6 +32,7 @@ type Material = 0 | 1 | 2
 interface EditorSnapshot {
   readonly heights: number[]
   readonly materials: number[]
+  readonly features: EditorFeature[]
 }
 
 const MATERIALS: readonly { readonly id: Material; readonly label: string }[] = [
@@ -127,6 +128,8 @@ function App() {
     if (isFeatureTool(tool)) {
       if (tool === 'point') {
         const feature = createEditorFeature('point', [coordinate], features.length)
+        setUndo((history) => [...history, snapshotEditorState(heights, materials, features)])
+        setRedo([])
         setFeatures((current) => [...current, feature])
         setFeatureWarnings(validateFeatureAgainstTerrain(feature, heights, materials, DIMENSION))
       } else {
@@ -138,7 +141,7 @@ function App() {
     rendererRef.current?.setSculpting(true)
     if (tool !== 'paint') rendererRef.current?.showBrushAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), brushRadius, DIMENSION)
     flattenTargetRef.current = heights[coordinate.row * DIMENSION + coordinate.column] ?? 0
-    setUndo((history) => [...history, { heights, materials }])
+    setUndo((history) => [...history, snapshotEditorState(heights, materials, features)])
     setRedo([])
     event.currentTarget.setPointerCapture(event.pointerId)
     edit(event)
@@ -154,24 +157,24 @@ function App() {
     rendererRef.current?.setSculpting(false)
   }
 
-  const restoreSnapshot = (snapshot: EditorSnapshot) => { setHeights(snapshot.heights); setMaterials(snapshot.materials) }
+  const restoreSnapshot = (snapshot: EditorSnapshot) => { setHeights(snapshot.heights); setMaterials(snapshot.materials); setFeatures(snapshot.features) }
   const undoEdit = () => {
     const previous = undo.at(-1)
     if (previous === undefined) return
     setUndo((items) => items.slice(0, -1))
-    setRedo((items) => [...items, { heights, materials }])
+    setRedo((items) => [...items, snapshotEditorState(heights, materials, features)])
     restoreSnapshot(previous)
   }
   const redoEdit = () => {
     const next = redo.at(-1)
     if (next === undefined) return
     setRedo((items) => items.slice(0, -1))
-    setUndo((items) => [...items, { heights, materials }])
+    setUndo((items) => [...items, snapshotEditorState(heights, materials, features)])
     restoreSnapshot(next)
   }
   const regenerate = () => {
     if (!confirm('Regenerate terrain? This can be undone.')) return
-    setUndo((items) => [...items, { heights, materials }])
+    setUndo((items) => [...items, snapshotEditorState(heights, materials, features)])
     setRedo([])
     setHeights(generateTerrainFromOptions(generation))
     setMaterials(Array(DIMENSION ** 2).fill(1))
@@ -181,12 +184,16 @@ function App() {
     const minimumPoints = tool === 'path' ? 2 : 3
     if (draftCoordinates.length < minimumPoints) return
     const feature = createEditorFeature(tool, draftCoordinates, features.length)
+    setUndo((history) => [...history, snapshotEditorState(heights, materials, features)])
+    setRedo([])
     setFeatures((current) => [...current, feature])
     setFeatureWarnings(validateFeatureAgainstTerrain(feature, heights, materials, DIMENSION))
     setDraftCoordinates([])
   }
   const deleteFeature = (id: string) => {
-    if (!confirm('Delete this feature? This cannot be undone yet.')) return
+    if (!confirm('Delete this feature? This can be undone.')) return
+    setUndo((history) => [...history, snapshotEditorState(heights, materials, features)])
+    setRedo([])
     setFeatures((current) => current.filter((feature) => feature.id !== id))
   }
   const exportWorld = () => {
@@ -309,6 +316,10 @@ function RangeControl({ label, value, onChange }: { readonly label: string; read
 function createInitialLibrary(recovered: ReturnType<typeof recoverEditorState>): LocalWorldLibrary {
   const world = createEditorWorld({ title: recovered?.title ?? 'Untitled world', generation: recovered?.generation ?? DEFAULT_TERRAIN_OPTIONS, heights: recovered?.heights ?? generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS), materials: recovered?.materials ?? Array(DIMENSION ** 2).fill(1), features: recovered?.features ?? [] })
   return { version: 1, activeWorldId: world.id, worlds: [world] }
+}
+
+function snapshotEditorState(heights: readonly number[], materials: readonly number[], features: readonly EditorFeature[]): EditorSnapshot {
+  return { heights: [...heights], materials: [...materials], features: features.map((feature) => ({ ...feature, coordinates: feature.coordinates.map((coordinate) => ({ ...coordinate })), attributes: { ...feature.attributes } })) }
 }
 
 function readWorklog(key: string): unknown[] {
