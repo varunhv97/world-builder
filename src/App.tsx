@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from 'react'
 import {
   DEFAULT_TERRAIN_OPTIONS,
   flattenTerrain,
@@ -12,6 +12,8 @@ import {
 } from './domain/local-terrain'
 import { recoverEditorState } from './domain/local-recovery'
 import { createEditorFeature, type EditorFeature, type EditorFeatureKind, type TerrainCoordinate } from './domain/editor-features'
+import { decodeEditorWorldSnapshot, encodeEditorWorldSnapshot } from './domain/loka/editor-snapshot'
+import type { EditorWorld } from './domain/editor-world'
 import { WorldRenderer } from './rendering/WorldRenderer'
 import './App.css'
 
@@ -35,11 +37,15 @@ const MATERIALS: readonly { readonly id: Material; readonly label: string }[] = 
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
   const rendererRef = useRef<WorldRenderer | null>(null)
   const drawingRef = useRef(false)
   const flattenTargetRef = useRef(0)
   const recovered = recoverEditorState(localStorage.getItem(STORAGE_KEY), DIMENSION ** 2)
-  const [generation, setGeneration] = useState<TerrainGenerationOptions>(DEFAULT_TERRAIN_OPTIONS)
+  const [worldId, setWorldId] = useState(() => recovered?.worldId ?? crypto.randomUUID())
+  const [title, setTitle] = useState(() => recovered?.title ?? 'Untitled world')
+  const [createdAt, setCreatedAt] = useState(() => recovered?.createdAt ?? new Date().toISOString())
+  const [generation, setGeneration] = useState<TerrainGenerationOptions>(() => recovered?.generation ?? DEFAULT_TERRAIN_OPTIONS)
   const [heights, setHeights] = useState(() => recovered?.heights ?? generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS))
   const [materials, setMaterials] = useState<number[]>(() => recovered?.materials ?? Array(DIMENSION ** 2).fill(1))
   const [tool, setTool] = useState<EditorTool>('raise')
@@ -68,8 +74,8 @@ function App() {
   useEffect(() => {
     rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials })
     rendererRef.current?.setFeatures(features, DIMENSION, heights)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ heights, materials, features, generation }))
-  }, [features, generation, heights, materials])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ worldId, title, createdAt, heights, materials, features, generation }))
+  }, [createdAt, features, generation, heights, materials, title, worldId])
 
   const edit = (event: PointerEvent<HTMLCanvasElement>) => {
     const coordinate = rendererRef.current?.terrainCoordinateAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), DIMENSION)
@@ -152,6 +158,26 @@ function App() {
     if (!confirm('Delete this feature? This cannot be undone yet.')) return
     setFeatures((current) => current.filter((feature) => feature.id !== id))
   }
+  const currentWorld = (): EditorWorld => ({ id: worldId, title, createdAt, updatedAt: new Date().toISOString(), generation, heights, materials, features })
+  const exportWorld = () => {
+    const bytes = encodeEditorWorldSnapshot(currentWorld())
+    const contents = new Uint8Array(bytes)
+    const url = URL.createObjectURL(new Blob([contents.buffer as ArrayBuffer], { type: 'application/octet-stream' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${title.trim().replaceAll(/[^a-z0-9]+/giu, '-').replaceAll(/^-|-$/gu, '') || 'world'}.loka`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  const importWorld = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    if (file === undefined) return
+    try {
+      const imported = decodeEditorWorldSnapshot(new Uint8Array(await file.arrayBuffer()))
+      setWorldId(imported.id); setTitle(imported.title); setCreatedAt(imported.createdAt); setGeneration(imported.generation); setHeights([...imported.heights]); setMaterials([...imported.materials]); setFeatures([...imported.features]); setUndo([]); setRedo([]); setDraftCoordinates([])
+    } catch { alert('That file is not a valid, supported .loka world snapshot.') }
+    event.currentTarget.value = ''
+  }
   const setGenerationControl = <Key extends keyof TerrainGenerationOptions>(key: Key, value: TerrainGenerationOptions[Key]) => {
     setGeneration((current) => ({ ...current, [key]: value }))
   }
@@ -159,7 +185,7 @@ function App() {
   const copy = isTerrainTool(tool) ? toolCopy(tool) : featureToolCopy(tool, draftCoordinates.length)
   return (
     <main className="app-shell">
-      <header><div><p className="eyebrow">Local-first · autosaved</p><h1>World Builder</h1></div></header>
+      <header><div><p className="eyebrow">Local-first · autosaved</p><input className="world-title" aria-label="World title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 200))} /></div><div className="world-file-actions"><button type="button" className="quiet-action" onClick={exportWorld}>Export .loka</button><button type="button" className="quiet-action" onClick={() => importInputRef.current?.click()}>Open .loka</button><input ref={importInputRef} className="visually-hidden" type="file" accept=".loka,application/octet-stream" onChange={importWorld} /></div></header>
       <section className="workspace">
         <nav className="tool-rail" aria-label="Terrain tools">
           <Tool active={tool === 'raise'} label="Raise" icon="↑" onClick={() => setTool('raise')} />
