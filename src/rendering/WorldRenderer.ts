@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import type { EditorFeature } from '../domain/editor-features'
 
 export interface RenderTerrain {
   readonly dimension: number
@@ -20,6 +21,7 @@ export class WorldRenderer {
     new THREE.RingGeometry(0.9, 1, 48),
     new THREE.MeshBasicMaterial({ color: '#563b91', depthTest: false, depthWrite: false, opacity: 0.95, side: THREE.DoubleSide, transparent: true }),
   )
+  readonly #features = new THREE.Group()
   #terrain?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
   #animationFrame?: number
   #width = 1
@@ -48,6 +50,7 @@ export class WorldRenderer {
     this.#brush.renderOrder = 2
     this.#brush.visible = false
     this.#scene.add(this.#brush)
+    this.#scene.add(this.#features)
     this.#camera.position.set(11, 12, 11)
     this.#camera.lookAt(0, 0, 0)
     this.#controls = new OrbitControls(this.#camera, canvas)
@@ -81,6 +84,28 @@ export class WorldRenderer {
 
   hideBrush(): void {
     this.#brush.visible = false
+  }
+
+  /** Rebuilds only disposable scene representations; canonical feature data stays in the domain layer. */
+  setFeatures(features: readonly EditorFeature[], dimension: number, elevations: readonly number[]): void {
+    disposeGroup(this.#features)
+    for (const feature of features) {
+      const points = feature.coordinates.map((coordinate) => terrainPosition(coordinate.column, coordinate.row, dimension, elevations))
+      if (feature.kind === 'point') {
+        const point = points[0]
+        if (point === undefined) continue
+        const marker = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshStandardMaterial({ color: '#f3c968', emissive: '#4a3510', emissiveIntensity: 0.25 }))
+        marker.position.copy(point)
+        this.#features.add(marker)
+        continue
+      }
+      if (points.length < (feature.kind === 'area' ? 3 : 2)) continue
+      const geometry = new THREE.BufferGeometry().setFromPoints(points)
+      const material = new THREE.LineBasicMaterial({ color: feature.kind === 'area' ? '#d8a14d' : '#4c81b4', depthTest: false })
+      const line = feature.kind === 'area' ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material)
+      line.renderOrder = 3
+      this.#features.add(line)
+    }
   }
 
   setTerrain(terrain: RenderTerrain): void {
@@ -156,6 +181,22 @@ export class WorldRenderer {
 
   dispose(): void {
     if (this.#animationFrame !== undefined) cancelAnimationFrame(this.#animationFrame)
-    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#grid.geometry.dispose(); this.#gridMaterial.dispose(); this.#brush.geometry.dispose(); (this.#brush.material as THREE.Material).dispose(); this.#renderer.dispose()
+    this.#controls.dispose(); this.#terrain?.geometry.dispose(); this.#terrain?.material.dispose(); this.#substrate.geometry.dispose(); this.#substrate.material.dispose(); this.#grid.geometry.dispose(); this.#gridMaterial.dispose(); this.#brush.geometry.dispose(); (this.#brush.material as THREE.Material).dispose(); disposeGroup(this.#features); this.#renderer.dispose()
   }
+}
+
+function terrainPosition(column: number, row: number, dimension: number, elevations: readonly number[]): THREE.Vector3 {
+  const boundedColumn = Math.max(0, Math.min(dimension - 1, column))
+  const boundedRow = Math.max(0, Math.min(dimension - 1, row))
+  return new THREE.Vector3(-5 + (boundedColumn / (dimension - 1)) * 10, elevations[boundedRow * dimension + boundedColumn]! / 500 + 0.09, -5 + (boundedRow / (dimension - 1)) * 10)
+}
+
+function disposeGroup(group: THREE.Group): void {
+  for (const object of group.children) {
+    const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>
+    mesh.geometry?.dispose()
+    if (Array.isArray(mesh.material)) mesh.material.forEach((material) => material.dispose())
+    else mesh.material?.dispose()
+  }
+  group.clear()
 }

@@ -10,6 +10,6 @@ describe('local recovery', () => {
 
 describe('editor recovery', () => {
   it('restores meaningful terrain paint alongside elevation', () => {
-    expect(recoverEditorState(JSON.stringify({ heights: [1, 2, 3, 4], materials: [0, 1, 2, 1] }), 4)).toEqual({ heights: [1, 2, 3, 4], materials: [0, 1, 2, 1] })
+    expect(recoverEditorState(JSON.stringify({ heights: [1, 2, 3, 4], materials: [0, 1, 2, 1] }), 4)).toEqual({ heights: [1, 2, 3, 4], materials: [0, 1, 2, 1], features: [] })
   })
 })
