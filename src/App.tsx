@@ -172,6 +172,29 @@ function App() {
     setUndo((items) => [...items, snapshotEditorState(heights, materials, features)])
     restoreSnapshot(next)
   }
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if ((!event.metaKey && !event.ctrlKey) || event.key.toLowerCase() !== 'z') return
+      const target = event.target
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return
+      event.preventDefault()
+      if (event.shiftKey) {
+        const next = redo.at(-1)
+        if (next === undefined) return
+        setRedo((items) => items.slice(0, -1))
+        setUndo((items) => [...items, snapshotEditorState(heights, materials, features)])
+        restoreSnapshot(next)
+        return
+      }
+      const previous = undo.at(-1)
+      if (previous === undefined) return
+      setUndo((items) => items.slice(0, -1))
+      setRedo((items) => [...items, snapshotEditorState(heights, materials, features)])
+      restoreSnapshot(previous)
+    }
+    window.addEventListener('keydown', handleHistoryShortcut)
+    return () => window.removeEventListener('keydown', handleHistoryShortcut)
+  }, [features, heights, materials, redo, undo])
   const regenerate = () => {
     if (!confirm('Regenerate terrain? This can be undone.')) return
     setUndo((items) => [...items, snapshotEditorState(heights, materials, features)])
@@ -268,7 +291,7 @@ function App() {
           {isFeatureTool(tool) && tool !== 'point' && <button className="primary-action" type="button" disabled={draftCoordinates.length < (tool === 'path' ? 2 : 3)} onClick={finishFeature}>Finish {tool}</button>}
           {featureWarnings.length > 0 && <section className="feature-warnings" aria-live="polite"><h3>Advisory warnings</h3>{featureWarnings.map((warning) => <p key={warning}>{warning}</p>)}</section>}
           {features.length > 0 && <section className="feature-list" aria-label="World features"><h3>Features</h3>{features.map((feature) => <div key={feature.id}><span>{feature.name}</span><button type="button" onClick={() => deleteFeature(feature.id)}>Delete</button></div>)}</section>}
-          <div className="action-row"><button className="quiet-action" type="button" disabled={!undo.length} onClick={undoEdit}>Undo</button><button className="quiet-action" type="button" disabled={!redo.length} onClick={redoEdit}>Redo</button></div>
+          <div className="action-row"><button className="quiet-action" type="button" disabled={!undo.length} onClick={undoEdit} title="Undo (Control or Command + Z)">Undo</button><button className="quiet-action" type="button" disabled={!redo.length} onClick={redoEdit} title="Redo (Shift + Control or Command + Z)">Redo</button></div>
           <GeneratorControls generation={generation} onChange={setGenerationControl} onRegenerate={regenerate} />
         </aside>
       </section>
