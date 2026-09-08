@@ -16,12 +16,14 @@ import { decodeEditorWorldSnapshot, encodeEditorWorldSnapshot } from './domain/l
 import { activateWorld, addWorld, createEditorWorld, deleteWorld, replaceWorld, type EditorWorld, type LocalWorldLibrary } from './domain/editor-world'
 import { recoverLocalWorldLibrary } from './domain/local-world-library'
 import { AccountPanel } from './components/AccountPanel'
+import { diffEditorContent, isEmptyEditorDelta, type EditorContent } from './domain/editor-delta'
 import { WorldRenderer } from './rendering/WorldRenderer'
 import './App.css'
 
 const DIMENSION = LOCAL_TERRAIN_DIMENSION
 const STORAGE_KEY = 'world-builder:editor-v2'
 const LIBRARY_STORAGE_KEY = 'world-builder:local-library-v1'
+const WORKLOG_STORAGE_PREFIX = 'world-builder:worklog:'
 
 type TerrainTool = 'raise' | 'lower' | 'smooth' | 'flatten' | 'paint'
 type EditorTool = TerrainTool | EditorFeatureKind
@@ -64,6 +66,7 @@ function App() {
   const [draftCoordinates, setDraftCoordinates] = useState<TerrainCoordinate[]>([])
   const [featureWarnings, setFeatureWarnings] = useState<string[]>([])
   const activeSnapshot = useMemo<EditorWorld>(() => ({ id: worldId, title, createdAt, updatedAt: new Date().toISOString(), generation, heights, materials, features }), [createdAt, features, generation, heights, materials, title, worldId])
+  const worklogRef = useRef<{ worldId: string; sequence: number; content: EditorContent }>({ worldId, sequence: 0, content: { heights, materials, features } })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -86,6 +89,20 @@ function App() {
   useEffect(() => {
     localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(replaceWorld(library, activeSnapshot)))
   }, [activeSnapshot, library])
+
+  useEffect(() => {
+    const previous = worklogRef.current
+    const content = { heights, materials, features }
+    if (previous.worldId !== worldId) { worklogRef.current = { worldId, sequence: 0, content }; return }
+    const forward = diffEditorContent(previous.content, content)
+    if (isEmptyEditorDelta(forward)) return
+    const sequence = previous.sequence + 1
+    const record = { id: crypto.randomUUID(), sequence, baseCheckpointId: worldId, forward, inverse: { heightChanges: forward.heightChanges.map((change) => ({ index: change.index, before: change.after, after: change.before })), materialChanges: forward.materialChanges.map((change) => ({ index: change.index, before: change.after, after: change.before })), ...(forward.featuresBefore === undefined ? {} : { featuresBefore: forward.featuresAfter, featuresAfter: forward.featuresBefore }) }, committedAt: new Date().toISOString() }
+    const key = `${WORKLOG_STORAGE_PREFIX}${worldId}`
+    const records = readWorklog(key)
+    localStorage.setItem(key, JSON.stringify([...records, record]))
+    worklogRef.current = { worldId, sequence, content }
+  }, [features, heights, materials, worldId])
 
   const edit = (event: PointerEvent<HTMLCanvasElement>) => {
     const coordinate = rendererRef.current?.terrainCoordinateAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), DIMENSION)
@@ -292,6 +309,10 @@ function RangeControl({ label, value, onChange }: { readonly label: string; read
 function createInitialLibrary(recovered: ReturnType<typeof recoverEditorState>): LocalWorldLibrary {
   const world = createEditorWorld({ title: recovered?.title ?? 'Untitled world', generation: recovered?.generation ?? DEFAULT_TERRAIN_OPTIONS, heights: recovered?.heights ?? generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS), materials: recovered?.materials ?? Array(DIMENSION ** 2).fill(1), features: recovered?.features ?? [] })
   return { version: 1, activeWorldId: world.id, worlds: [world] }
+}
+
+function readWorklog(key: string): unknown[] {
+  try { const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
 }
 
 export default App
