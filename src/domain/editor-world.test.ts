@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEditorWorld, deleteWorld, replaceWorld, updateEditorWorld, type LocalWorldLibrary } from './editor-world'
+import { activateWorld, addWorld, createEditorWorld, deleteWorld, replaceWorld, updateEditorWorld, type LocalWorldLibrary } from './editor-world'
 import { DEFAULT_TERRAIN_OPTIONS } from './local-terrain'
 
 function world(title: string) { return createEditorWorld({ title, generation: DEFAULT_TERRAIN_OPTIONS, heights: [0, 0, 0, 0], materials: [1, 1, 1, 1], features: [] }, new Date('2026-01-01T00:00:00.000Z')) }
@@ -19,5 +19,10 @@ describe('editor worlds', () => {
     const library: LocalWorldLibrary = { version: 1, activeWorldId: first.id, worlds: [first, second] }
     expect(deleteWorld(library, first.id).activeWorldId).toBe(second.id)
     expect(replaceWorld(library, updateEditorWorld(first, { title: 'Updated', generation: DEFAULT_TERRAIN_OPTIONS, heights: [0, 0, 0, 0], materials: [1, 1, 1, 1], features: [] })).worlds[0]!.title).toBe('Updated')
+  })
+  it('adds and activates independently navigable worlds', () => {
+    const first = world('First'); const second = world('Second')
+    const library: LocalWorldLibrary = { version: 1, activeWorldId: first.id, worlds: [first] }
+    expect(activateWorld(addWorld(library, second), first.id).activeWorldId).toBe(first.id)
   })
 })

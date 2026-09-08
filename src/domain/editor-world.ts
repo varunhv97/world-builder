@@ -32,6 +32,16 @@ export function replaceWorld(library: LocalWorldLibrary, replacement: EditorWorl
   return { ...library, worlds: library.worlds.map((world) => world.id === replacement.id ? cloneWorld(replacement) : world) }
 }
 
+export function addWorld(library: LocalWorldLibrary, world: EditorWorld): LocalWorldLibrary {
+  if (library.worlds.some((existing) => existing.id === world.id)) throw new Error('Cannot add a world with a duplicate ID.')
+  return { version: 1, activeWorldId: world.id, worlds: [...library.worlds, cloneWorld(world)] }
+}
+
+export function activateWorld(library: LocalWorldLibrary, worldId: string): LocalWorldLibrary {
+  if (!library.worlds.some((world) => world.id === worldId)) throw new Error('Cannot activate an unknown world.')
+  return { ...library, activeWorldId: worldId }
+}
+
 export function deleteWorld(library: LocalWorldLibrary, worldId: string): LocalWorldLibrary {
   if (library.worlds.length <= 1) throw new Error('A library must retain at least one world.')
   const worlds = library.worlds.filter((world) => world.id !== worldId)

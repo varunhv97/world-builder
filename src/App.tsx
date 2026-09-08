@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent } from 'react'
 import {
   DEFAULT_TERRAIN_OPTIONS,
   flattenTerrain,
@@ -13,12 +13,14 @@ import {
 import { recoverEditorState } from './domain/local-recovery'
 import { createEditorFeature, type EditorFeature, type EditorFeatureKind, type TerrainCoordinate } from './domain/editor-features'
 import { decodeEditorWorldSnapshot, encodeEditorWorldSnapshot } from './domain/loka/editor-snapshot'
-import type { EditorWorld } from './domain/editor-world'
+import { activateWorld, addWorld, createEditorWorld, deleteWorld, replaceWorld, type EditorWorld, type LocalWorldLibrary } from './domain/editor-world'
+import { recoverLocalWorldLibrary } from './domain/local-world-library'
 import { WorldRenderer } from './rendering/WorldRenderer'
 import './App.css'
 
 const DIMENSION = LOCAL_TERRAIN_DIMENSION
 const STORAGE_KEY = 'world-builder:editor-v2'
+const LIBRARY_STORAGE_KEY = 'world-builder:local-library-v1'
 
 type TerrainTool = 'raise' | 'lower' | 'smooth' | 'flatten' | 'paint'
 type EditorTool = TerrainTool | EditorFeatureKind
@@ -42,12 +44,14 @@ function App() {
   const drawingRef = useRef(false)
   const flattenTargetRef = useRef(0)
   const recovered = recoverEditorState(localStorage.getItem(STORAGE_KEY), DIMENSION ** 2)
-  const [worldId, setWorldId] = useState(() => recovered?.worldId ?? crypto.randomUUID())
-  const [title, setTitle] = useState(() => recovered?.title ?? 'Untitled world')
-  const [createdAt, setCreatedAt] = useState(() => recovered?.createdAt ?? new Date().toISOString())
-  const [generation, setGeneration] = useState<TerrainGenerationOptions>(() => recovered?.generation ?? DEFAULT_TERRAIN_OPTIONS)
-  const [heights, setHeights] = useState(() => recovered?.heights ?? generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS))
-  const [materials, setMaterials] = useState<number[]>(() => recovered?.materials ?? Array(DIMENSION ** 2).fill(1))
+  const [library, setLibrary] = useState<LocalWorldLibrary>(() => recoverLocalWorldLibrary(localStorage.getItem(LIBRARY_STORAGE_KEY)) ?? createInitialLibrary(recovered))
+  const initialWorld = library.worlds.find((world) => world.id === library.activeWorldId)!
+  const [worldId, setWorldId] = useState(() => initialWorld.id)
+  const [title, setTitle] = useState(() => initialWorld.title)
+  const [createdAt, setCreatedAt] = useState(() => initialWorld.createdAt)
+  const [generation, setGeneration] = useState<TerrainGenerationOptions>(() => initialWorld.generation)
+  const [heights, setHeights] = useState(() => [...initialWorld.heights])
+  const [materials, setMaterials] = useState<number[]>(() => [...initialWorld.materials])
   const [tool, setTool] = useState<EditorTool>('raise')
   const [material, setMaterial] = useState<Material>(1)
   const [brushRadius, setBrushRadius] = useState(2)
@@ -55,8 +59,9 @@ function App() {
   const [gridVisible, setGridVisible] = useState(false)
   const [undo, setUndo] = useState<EditorSnapshot[]>([])
   const [redo, setRedo] = useState<EditorSnapshot[]>([])
-  const [features, setFeatures] = useState<EditorFeature[]>(() => recovered?.features ?? [])
+  const [features, setFeatures] = useState<EditorFeature[]>(() => [...initialWorld.features])
   const [draftCoordinates, setDraftCoordinates] = useState<TerrainCoordinate[]>([])
+  const activeSnapshot = useMemo<EditorWorld>(() => ({ id: worldId, title, createdAt, updatedAt: new Date().toISOString(), generation, heights, materials, features }), [createdAt, features, generation, heights, materials, title, worldId])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -74,8 +79,11 @@ function App() {
   useEffect(() => {
     rendererRef.current?.setTerrain({ dimension: DIMENSION, elevations: heights, materialIndices: materials })
     rendererRef.current?.setFeatures(features, DIMENSION, heights)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ worldId, title, createdAt, heights, materials, features, generation }))
-  }, [createdAt, features, generation, heights, materials, title, worldId])
+  }, [features, heights, materials])
+
+  useEffect(() => {
+    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(replaceWorld(library, activeSnapshot)))
+  }, [activeSnapshot, library])
 
   const edit = (event: PointerEvent<HTMLCanvasElement>) => {
     const coordinate = rendererRef.current?.terrainCoordinateAt(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), DIMENSION)
@@ -158,9 +166,8 @@ function App() {
     if (!confirm('Delete this feature? This cannot be undone yet.')) return
     setFeatures((current) => current.filter((feature) => feature.id !== id))
   }
-  const currentWorld = (): EditorWorld => ({ id: worldId, title, createdAt, updatedAt: new Date().toISOString(), generation, heights, materials, features })
   const exportWorld = () => {
-    const bytes = encodeEditorWorldSnapshot(currentWorld())
+    const bytes = encodeEditorWorldSnapshot(activeSnapshot)
     const contents = new Uint8Array(bytes)
     const url = URL.createObjectURL(new Blob([contents.buffer as ArrayBuffer], { type: 'application/octet-stream' }))
     const link = document.createElement('a')
@@ -174,9 +181,33 @@ function App() {
     if (file === undefined) return
     try {
       const imported = decodeEditorWorldSnapshot(new Uint8Array(await file.arrayBuffer()))
-      setWorldId(imported.id); setTitle(imported.title); setCreatedAt(imported.createdAt); setGeneration(imported.generation); setHeights([...imported.heights]); setMaterials([...imported.materials]); setFeatures([...imported.features]); setUndo([]); setRedo([]); setDraftCoordinates([])
+      const duplicate = library.worlds.some((world) => world.id === imported.id)
+      const nextWorld = duplicate ? createEditorWorld({ title: imported.title, generation: imported.generation, heights: imported.heights, materials: imported.materials, features: imported.features }) : imported
+      setLibrary((current) => addWorld(replaceWorld(current, activeSnapshot), nextWorld))
+      loadWorld(nextWorld)
     } catch { alert('That file is not a valid, supported .loka world snapshot.') }
     event.currentTarget.value = ''
+  }
+  const loadWorld = (world: EditorWorld) => {
+    setWorldId(world.id); setTitle(world.title); setCreatedAt(world.createdAt); setGeneration(world.generation); setHeights([...world.heights]); setMaterials([...world.materials]); setFeatures([...world.features]); setUndo([]); setRedo([]); setDraftCoordinates([])
+  }
+  const selectWorld = (nextId: string) => {
+    const next = library.worlds.find((world) => world.id === nextId)
+    if (next === undefined) return
+    setLibrary((current) => activateWorld(replaceWorld(current, activeSnapshot), nextId))
+    loadWorld(next)
+  }
+  const createWorld = () => {
+    const next = createEditorWorld({ title: 'Untitled world', generation: { ...DEFAULT_TERRAIN_OPTIONS, seed: Math.floor(Math.random() * 2 ** 31) }, heights: generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS), materials: Array(DIMENSION ** 2).fill(1), features: [] })
+    setLibrary((current) => addWorld(replaceWorld(current, activeSnapshot), next))
+    loadWorld(next)
+  }
+  const removeWorld = () => {
+    if (library.worlds.length <= 1 || !confirm(`Delete ${title}? This cannot be undone.`)) return
+    const nextLibrary = deleteWorld(replaceWorld(library, activeSnapshot), worldId)
+    const nextWorld = nextLibrary.worlds.find((world) => world.id === nextLibrary.activeWorldId)!
+    setLibrary(nextLibrary)
+    loadWorld(nextWorld)
   }
   const setGenerationControl = <Key extends keyof TerrainGenerationOptions>(key: Key, value: TerrainGenerationOptions[Key]) => {
     setGeneration((current) => ({ ...current, [key]: value }))
@@ -185,7 +216,7 @@ function App() {
   const copy = isTerrainTool(tool) ? toolCopy(tool) : featureToolCopy(tool, draftCoordinates.length)
   return (
     <main className="app-shell">
-      <header><div><p className="eyebrow">Local-first · autosaved</p><input className="world-title" aria-label="World title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 200))} /></div><div className="world-file-actions"><button type="button" className="quiet-action" onClick={exportWorld}>Export .loka</button><button type="button" className="quiet-action" onClick={() => importInputRef.current?.click()}>Open .loka</button><input ref={importInputRef} className="visually-hidden" type="file" accept=".loka,application/octet-stream" onChange={importWorld} /></div></header>
+      <header><div><p className="eyebrow">Local-first · autosaved</p><input className="world-title" aria-label="World title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 200))} /></div><div className="world-file-actions"><select aria-label="Active world" value={worldId} onChange={(event) => selectWorld(event.target.value)}>{library.worlds.map((world) => <option key={world.id} value={world.id}>{world.title}</option>)}</select><button type="button" className="quiet-action" onClick={createWorld}>New</button><button type="button" className="quiet-action" disabled={library.worlds.length <= 1} onClick={removeWorld}>Delete</button><button type="button" className="quiet-action" onClick={exportWorld}>Export .loka</button><button type="button" className="quiet-action" onClick={() => importInputRef.current?.click()}>Open .loka</button><input ref={importInputRef} className="visually-hidden" type="file" accept=".loka,application/octet-stream" onChange={importWorld} /></div></header>
       <section className="workspace">
         <nav className="tool-rail" aria-label="Terrain tools">
           <Tool active={tool === 'raise'} label="Raise" icon="↑" onClick={() => setTool('raise')} />
@@ -249,6 +280,11 @@ function GeneratorControls({ generation, onChange, onRegenerate }: { readonly ge
 
 function RangeControl({ label, value, onChange }: { readonly label: string; readonly value: number; readonly onChange: (value: number) => void }) {
   return <label>{label}<input aria-label={label} type="range" min="0" max="1" step="0.05" value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>
+}
+
+function createInitialLibrary(recovered: ReturnType<typeof recoverEditorState>): LocalWorldLibrary {
+  const world = createEditorWorld({ title: recovered?.title ?? 'Untitled world', generation: recovered?.generation ?? DEFAULT_TERRAIN_OPTIONS, heights: recovered?.heights ?? generateTerrainFromOptions(DEFAULT_TERRAIN_OPTIONS), materials: recovered?.materials ?? Array(DIMENSION ** 2).fill(1), features: recovered?.features ?? [] })
+  return { version: 1, activeWorldId: world.id, worlds: [world] }
 }
 
 export default App
