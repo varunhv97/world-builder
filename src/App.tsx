@@ -66,6 +66,7 @@ function App() {
   const [features, setFeatures] = useState<EditorFeature[]>(() => [...initialWorld.features])
   const [draftCoordinates, setDraftCoordinates] = useState<TerrainCoordinate[]>([])
   const [featureWarnings, setFeatureWarnings] = useState<string[]>([])
+  const [featureQuery, setFeatureQuery] = useState('')
   const activeSnapshot = useMemo<EditorWorld>(() => ({ id: worldId, title, createdAt, updatedAt: new Date().toISOString(), generation, heights, materials, features }), [createdAt, features, generation, heights, materials, title, worldId])
   const worklogRef = useRef<{ worldId: string; sequence: number; content: EditorContent }>({ worldId, sequence: 0, content: { heights, materials, features } })
 
@@ -267,6 +268,7 @@ function App() {
   }
 
   const copy = isTerrainTool(tool) ? toolCopy(tool) : featureToolCopy(tool, draftCoordinates.length)
+  const matchingFeatures = features.filter((feature) => `${feature.name} ${feature.kind} ${Object.values(feature.attributes).join(' ')}`.toLocaleLowerCase().includes(featureQuery.trim().toLocaleLowerCase()))
   return (
     <main className="app-shell">
       <header><div><p className="eyebrow">Local-first · autosaved</p><input className="world-title" aria-label="World title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 200))} /></div><div className="world-file-actions"><AccountPanel /><select aria-label="Active world" value={worldId} onChange={(event) => selectWorld(event.target.value)}>{library.worlds.map((world) => <option key={world.id} value={world.id}>{world.title}</option>)}</select><button type="button" className="quiet-action" onClick={createWorld}>New</button><button type="button" className="quiet-action" disabled={library.worlds.length <= 1} onClick={removeWorld}>Delete</button><button type="button" className="quiet-action" onClick={exportWorld}>Export .loka</button><button type="button" className="quiet-action" onClick={() => importInputRef.current?.click()}>Open .loka</button><input ref={importInputRef} className="visually-hidden" type="file" accept=".loka,application/octet-stream" onChange={importWorld} /></div></header>
@@ -290,7 +292,7 @@ function App() {
           {tool === 'paint' && <fieldset className="material-picker"><legend>Surface material</legend>{MATERIALS.map((option) => <label key={option.id}><input type="radio" name="material" checked={material === option.id} onChange={() => setMaterial(option.id)} />{option.label}</label>)}</fieldset>}
           {isFeatureTool(tool) && tool !== 'point' && <button className="primary-action" type="button" disabled={draftCoordinates.length < (tool === 'path' ? 2 : 3)} onClick={finishFeature}>Finish {tool}</button>}
           {featureWarnings.length > 0 && <section className="feature-warnings" aria-live="polite"><h3>Advisory warnings</h3>{featureWarnings.map((warning) => <p key={warning}>{warning}</p>)}</section>}
-          {features.length > 0 && <section className="feature-list" aria-label="World features"><h3>Features</h3>{features.map((feature) => <div key={feature.id}><span>{feature.name}</span><button type="button" onClick={() => deleteFeature(feature.id)}>Delete</button></div>)}</section>}
+          {features.length > 0 && <section className="feature-list" aria-label="World features"><h3>Features</h3><input aria-label="Search world features" placeholder="Search features" value={featureQuery} onChange={(event) => setFeatureQuery(event.target.value)} />{matchingFeatures.length === 0 ? <p>No matching features.</p> : matchingFeatures.map((feature) => <div key={feature.id}><span>{feature.name}</span><button type="button" onClick={() => deleteFeature(feature.id)}>Delete</button></div>)}</section>}
           <div className="action-row"><button className="quiet-action" type="button" disabled={!undo.length} onClick={undoEdit} title="Undo (Control or Command + Z)">Undo</button><button className="quiet-action" type="button" disabled={!redo.length} onClick={redoEdit} title="Redo (Shift + Control or Command + Z)">Redo</button></div>
           <GeneratorControls generation={generation} onChange={setGenerationControl} onRegenerate={regenerate} />
         </aside>
