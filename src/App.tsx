@@ -11,7 +11,7 @@ import {
   type TerrainPreset,
 } from './domain/local-terrain'
 import { recoverEditorState } from './domain/local-recovery'
-import { createEditorFeature, type EditorFeature, type EditorFeatureKind, type TerrainCoordinate } from './domain/editor-features'
+import { createEditorFeature, validateFeatureAgainstTerrain, type EditorFeature, type EditorFeatureKind, type TerrainCoordinate } from './domain/editor-features'
 import { decodeEditorWorldSnapshot, encodeEditorWorldSnapshot } from './domain/loka/editor-snapshot'
 import { activateWorld, addWorld, createEditorWorld, deleteWorld, replaceWorld, type EditorWorld, type LocalWorldLibrary } from './domain/editor-world'
 import { recoverLocalWorldLibrary } from './domain/local-world-library'
@@ -62,6 +62,7 @@ function App() {
   const [redo, setRedo] = useState<EditorSnapshot[]>([])
   const [features, setFeatures] = useState<EditorFeature[]>(() => [...initialWorld.features])
   const [draftCoordinates, setDraftCoordinates] = useState<TerrainCoordinate[]>([])
+  const [featureWarnings, setFeatureWarnings] = useState<string[]>([])
   const activeSnapshot = useMemo<EditorWorld>(() => ({ id: worldId, title, createdAt, updatedAt: new Date().toISOString(), generation, heights, materials, features }), [createdAt, features, generation, heights, materials, title, worldId])
 
   useEffect(() => {
@@ -108,7 +109,9 @@ function App() {
     if (coordinate === undefined) return
     if (isFeatureTool(tool)) {
       if (tool === 'point') {
-        setFeatures((current) => [...current, createEditorFeature('point', [coordinate], current.length)])
+        const feature = createEditorFeature('point', [coordinate], features.length)
+        setFeatures((current) => [...current, feature])
+        setFeatureWarnings(validateFeatureAgainstTerrain(feature, heights, materials, DIMENSION))
       } else {
         setDraftCoordinates((current) => [...current, coordinate])
       }
@@ -160,7 +163,9 @@ function App() {
     if (!isFeatureTool(tool) || tool === 'point') return
     const minimumPoints = tool === 'path' ? 2 : 3
     if (draftCoordinates.length < minimumPoints) return
-    setFeatures((current) => [...current, createEditorFeature(tool, draftCoordinates, current.length)])
+    const feature = createEditorFeature(tool, draftCoordinates, features.length)
+    setFeatures((current) => [...current, feature])
+    setFeatureWarnings(validateFeatureAgainstTerrain(feature, heights, materials, DIMENSION))
     setDraftCoordinates([])
   }
   const deleteFeature = (id: string) => {
@@ -237,6 +242,7 @@ function App() {
           {isTerrainTool(tool) && tool !== 'paint' && <label className="brush-control">Brush strength <output>{Math.round(brushStrength * 100)}%</output><input aria-label="Brush strength" type="range" min="0.1" max="1" step="0.1" value={brushStrength} onChange={(event) => setBrushStrength(Number(event.target.value))} /></label>}
           {tool === 'paint' && <fieldset className="material-picker"><legend>Surface material</legend>{MATERIALS.map((option) => <label key={option.id}><input type="radio" name="material" checked={material === option.id} onChange={() => setMaterial(option.id)} />{option.label}</label>)}</fieldset>}
           {isFeatureTool(tool) && tool !== 'point' && <button className="primary-action" type="button" disabled={draftCoordinates.length < (tool === 'path' ? 2 : 3)} onClick={finishFeature}>Finish {tool}</button>}
+          {featureWarnings.length > 0 && <section className="feature-warnings" aria-live="polite"><h3>Advisory warnings</h3>{featureWarnings.map((warning) => <p key={warning}>{warning}</p>)}</section>}
           {features.length > 0 && <section className="feature-list" aria-label="World features"><h3>Features</h3>{features.map((feature) => <div key={feature.id}><span>{feature.name}</span><button type="button" onClick={() => deleteFeature(feature.id)}>Delete</button></div>)}</section>}
           <div className="action-row"><button className="quiet-action" type="button" disabled={!undo.length} onClick={undoEdit}>Undo</button><button className="quiet-action" type="button" disabled={!redo.length} onClick={redoEdit}>Redo</button></div>
           <GeneratorControls generation={generation} onChange={setGenerationControl} onRegenerate={regenerate} />

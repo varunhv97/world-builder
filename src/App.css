@@ -81,6 +81,9 @@ button:focus-visible { outline: 3px solid #553b90; outline-offset: 3px; }
 .feature-list h3 { font-size: .8rem; margin: 0 0 .4rem; text-transform: uppercase; }
 .feature-list div { align-items: center; display: flex; font-size: .8rem; justify-content: space-between; padding: .25rem 0; }
 .feature-list button { background: transparent; border: 0; color: var(--color-accent); cursor: pointer; font-size: .75rem; font-weight: 700; }
+.feature-warnings { background: #fff4d7; border: 1px solid #d5a94d; border-radius: .5rem; color: #674a10; font-size: .8rem; margin-top: .75rem; padding: .6rem; }
+.feature-warnings h3, .feature-warnings p { margin: 0; }
+.feature-warnings p + p { margin-top: .35rem; }
 
 .world-canvas { background: #cdd9d5; border-radius: .75rem; cursor: crosshair; height: 28rem; touch-action: none; width: 100%; }
 .foundation-card aside { display: grid; gap: 1rem; }

@@ -34,3 +34,19 @@ export function createEditorFeature(kind: EditorFeatureKind, coordinates: readon
     attributes: kind === 'path' ? { type: 'river' } : {},
   }
 }
+
+/** Advisory geography checks never block intentional creator choices. */
+export function validateFeatureAgainstTerrain(feature: EditorFeature, elevations: readonly number[], materials: readonly number[], dimension: number): string[] {
+  const warnings = validateEditorFeature(feature)
+  const elevationAt = (coordinate: TerrainCoordinate) => elevations[coordinate.row * dimension + coordinate.column]
+  const materialAt = (coordinate: TerrainCoordinate) => materials[coordinate.row * dimension + coordinate.column]
+  if (feature.attributes['type'] === 'river') {
+    for (let index = 1; index < feature.coordinates.length; index += 1) {
+      const previous = elevationAt(feature.coordinates[index - 1]!)
+      const current = elevationAt(feature.coordinates[index]!)
+      if (previous !== undefined && current !== undefined && current > previous) warnings.push('River path includes an uphill segment.')
+    }
+  }
+  if (['settlement', 'forest', 'mountain', 'biome'].includes(String(feature.attributes['type'])) && feature.coordinates.some((coordinate) => materialAt(coordinate) === 0)) warnings.push('This feature includes water terrain and is usually placed on land.')
+  return warnings
+}
