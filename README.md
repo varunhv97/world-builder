@@ -2,7 +2,7 @@
 
 A bold, local-first 3D world-building tool for creating, sculpting, and saving explorable worlds.
 
-> **Status: active development.** The application foundation and the first tested LOKA/1 header codec are implemented; the interactive editor is not yet available.
+> **Status: active development.** The local 3D editor, portable `.loka` snapshots, multi-world browser library, and Supabase-ready cloud boundary are implemented. Hosted authentication and cloud synchronization await a configured Supabase project and deployment validation.
 
 ## The idea
 
@@ -30,6 +30,16 @@ The first release is deliberately contained: one creator, private worlds, and a 
 | Web delivery | Vercel |
 | Monitoring | Privacy-scrubbed Sentry client telemetry and Supabase observability |
 
+## Implemented today
+
+- Generated, bounded 3D terrain with reproducible presets and guided generator controls.
+- Terrain raise, lower, smooth, flatten, and surface-paint brushes with adjustable size and strength, direct pointer strokes, and undo/redo.
+- Local geographic point, path, and area authoring rendered through the project-owned Three.js boundary.
+- Multiple locally saved worlds, browser-refresh recovery, and import/export of checksummed `.loka` snapshots.
+- A secure Supabase integration boundary, public-client environment template, and SQL migration with account-isolated Row Level Security and a private checkpoint bucket.
+
+Cloud features intentionally remain disabled when the two public Supabase environment values are absent; local editing is unaffected.
+
 ## Design documents
 
 These documents are public, reviewed snapshots. The private Obsidian project vault remains the working source of record.
@@ -49,6 +59,8 @@ npm install
 npm run dev
 ```
 
+To enable the cloud client after creating a Supabase project, copy `.env.example` to `.env.local`, fill in only the public project URL and publishable/anon key, and apply the SQL migration in `supabase/migrations/`. Do not add a service-role key, user world, or production credential to any client-side file or commit.
+
 Before opening a pull request or publishing a change, run:
 
 ```bash
@@ -58,7 +70,7 @@ npm run typecheck
 npm run build
 ```
 
-The initial tests cover the fixed LOKA/1 header codec. As editor workflows are implemented, this suite will expand with document, persistence, integration, and end-to-end coverage described in the acceptance plan.
+The unit suite covers LOKA headers/checkpoints, compaction, terrain operations, feature validation, local recovery, multi-world behavior, and portable snapshot corruption detection. Integration, end-to-end, and real Supabase RLS validation remain release-gate work once a staging project exists.
 
 Changes are developed as small, coherent commits and are pushed only after the relevant tests, lint, type check, and production build pass.
 
