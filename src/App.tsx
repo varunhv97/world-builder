@@ -16,6 +16,7 @@ import { decodeEditorWorldSnapshot, encodeEditorWorldSnapshot } from './domain/l
 import { activateWorld, addWorld, createEditorWorld, deleteWorld, replaceWorld, type EditorWorld, type LocalWorldLibrary } from './domain/editor-world'
 import { recoverLocalWorldLibrary } from './domain/local-world-library'
 import { AccountPanel } from './components/AccountPanel'
+import { CloudSync } from './components/CloudSync'
 import { diffEditorContent, isEmptyEditorDelta, type EditorContent } from './domain/editor-delta'
 import { WorldRenderer } from './rendering/WorldRenderer'
 import './App.css'
@@ -271,7 +272,7 @@ function App() {
   const matchingFeatures = features.filter((feature) => `${feature.name} ${feature.kind} ${Object.values(feature.attributes).join(' ')}`.toLocaleLowerCase().includes(featureQuery.trim().toLocaleLowerCase()))
   return (
     <main className="app-shell">
-      <header><div><p className="eyebrow">Local-first · autosaved</p><input className="world-title" aria-label="World title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 200))} /></div><div className="world-file-actions"><AccountPanel /><select aria-label="Active world" value={worldId} onChange={(event) => selectWorld(event.target.value)}>{library.worlds.map((world) => <option key={world.id} value={world.id}>{world.title}</option>)}</select><button type="button" className="quiet-action" onClick={createWorld}>New</button><button type="button" className="quiet-action" disabled={library.worlds.length <= 1} onClick={removeWorld}>Delete</button><button type="button" className="quiet-action" onClick={exportWorld}>Export .loka</button><button type="button" className="quiet-action" onClick={() => importInputRef.current?.click()}>Open .loka</button><input ref={importInputRef} className="visually-hidden" type="file" accept=".loka,application/octet-stream" onChange={importWorld} /></div></header>
+      <header><div><p className="eyebrow">Local-first · autosaved</p><input className="world-title" aria-label="World title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 200))} /></div><div className="world-file-actions"><CloudSync world={activeSnapshot} /><AccountPanel /><select aria-label="Active world" value={worldId} onChange={(event) => selectWorld(event.target.value)}>{library.worlds.map((world) => <option key={world.id} value={world.id}>{world.title}</option>)}</select><button type="button" className="quiet-action" onClick={createWorld}>New</button><button type="button" className="quiet-action" disabled={library.worlds.length <= 1} onClick={removeWorld}>Delete</button><button type="button" className="quiet-action" onClick={exportWorld}>Export .loka</button><button type="button" className="quiet-action" onClick={() => importInputRef.current?.click()}>Open .loka</button><input ref={importInputRef} className="visually-hidden" type="file" accept=".loka,application/octet-stream" onChange={importWorld} /></div></header>
       <section className="workspace">
         <nav className="tool-rail" aria-label="Terrain tools">
           <Tool active={tool === 'raise'} label="Raise" icon="↑" onClick={() => setTool('raise')} />

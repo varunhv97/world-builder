@@ -67,6 +67,9 @@ button:focus-visible { outline: 3px solid #553b90; outline-offset: 3px; }
 .app-shell > header::after { color: #2e6d45; content: 'Saved locally'; font-size: .875rem; font-weight: 700; }
 .world-title { background: transparent; border: 0; color: var(--color-ink); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 5vw, 4rem); font-weight: 500; letter-spacing: -.05em; line-height: 1.1; margin: .3rem 0 1rem; max-width: 100%; padding: 0; }
 .world-file-actions { display: flex; gap: .5rem; }
+.cloud-status { color: var(--color-muted); font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.cloud-status.is-saved { color: #2e6d45; }
+.cloud-status.is-error { color: #a44932; }
 .account-panel { align-items: end; display: flex; flex-wrap: wrap; gap: .4rem; }
 .account-panel label { display: grid; font-size: .7rem; font-weight: 700; gap: .15rem; }
 .account-panel input { border: 1px solid var(--color-line); border-radius: .35rem; max-width: 10rem; padding: .25rem .4rem; }

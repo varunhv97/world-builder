@@ -10,16 +10,20 @@ export interface CloudWorldSummary {
 }
 
 /** Cloud transport only accepts canonical snapshots; it never receives UI state or inverse history. */
-export async function uploadCheckpoint(world: EditorWorld, sequence: number): Promise<void> {
+export async function saveCloudCheckpoint(world: EditorWorld): Promise<number> {
   const supabase = getRequiredClient()
   const { data: identity, error: identityError } = await supabase.auth.getUser()
   if (identityError !== null || identity.user === null) throw new Error('Sign in before saving to cloud.')
+  const { data: existing, error: existingError } = await supabase.from('worlds').select('current_sequence').eq('id', world.id).maybeSingle()
+  if (existingError !== null) throw new Error(existingError.message)
+  const sequence = (existing?.current_sequence as number | undefined ?? 0) + 1
   const path = `${identity.user.id}/${world.id}/${sequence}.loka`
   const snapshot = encodeEditorWorldSnapshot(world)
   const { error: uploadError } = await supabase.storage.from('loka-checkpoints').upload(path, new Blob([new Uint8Array(snapshot).buffer as ArrayBuffer]), { contentType: 'application/octet-stream', upsert: false })
   if (uploadError !== null) throw new Error(uploadError.message)
   const { error: worldError } = await supabase.from('worlds').upsert({ id: world.id, owner_id: identity.user.id, title: world.title, checkpoint_path: path, current_sequence: sequence }, { onConflict: 'id' })
   if (worldError !== null) throw new Error(worldError.message)
+  return sequence
 }
 
 export async function listCloudWorlds(): Promise<CloudWorldSummary[]> {
