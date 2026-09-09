@@ -1,12 +1,12 @@
 # LOKA: the World File Format
 
-World Builder stores a portable world snapshot in a project-owned `.loka` file. The first version of the format is called **LOKA/1**.
+Loka Studio stores a portable world snapshot in a project-owned `.loka` file. The first version of the format is called **LOKA/1**.
 
 LOKA is intentionally a data format—not a database dump, a UI-session file, or an executable plugin container. It stores the canonical editable content of a world so the same world can be loaded locally, synchronized through the cloud, backed up, and evolved without making the renderer or UI part of the saved data.
 
 ## The name
 
-**Loka** (लोक) is a Sanskrit word whose meanings include *world*, *realm*, *place*, and a plane or sphere of existence. That makes it a natural, compact name for a file that represents one creator's world. The name is intentionally broad: World Builder is not limited to fantasy settings or a single genre.
+**Loka** (लोक) is a Sanskrit word whose meanings include *world*, *realm*, *place*, and a plane or sphere of existence. That makes it a natural, compact name for a file that represents one creator's world. The name is intentionally broad: Loka Studio is not limited to fantasy settings or a single genre.
 
 We chose `.loka` because it is memorable, readable, and semantically tied to the thing the file holds, without borrowing the name of an existing graphics engine, database, or generic archive format. The extension is a project convention; the reliable format identifier is the `LOKA` magic value and version stored in every file header. For linguistic reference, see the [Cologne Digital Sanskrit Lexicon's Monier-Williams dictionary](https://sanskrit-lexicon.github.io/MWS/).
 
@@ -27,7 +27,7 @@ LOKA/1 instead uses a compact binary checkpoint divided into spatially addressab
 
 ## What “native” means here
 
-Going native does **not** mean rebuilding every reliable technology from scratch. World Builder will still use established infrastructure where it is the best fit: React for interface composition, Three.js for low-level browser graphics, and Supabase/Vercel for managed cloud services and delivery.
+Going native does **not** mean rebuilding every reliable technology from scratch. Loka Studio still uses established infrastructure where it is the best fit: React for interface composition, Three.js for low-level browser graphics, and Supabase/Vercel for managed cloud services and delivery.
 
 It means the project owns the parts that define its behavior and data contract:
 

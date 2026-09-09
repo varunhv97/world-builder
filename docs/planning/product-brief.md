@@ -4,6 +4,10 @@
 
 Help solo creators turn imagined geography into a usable, enjoyable digital workspace that feels tangible and creator-owned.
 
+## Product identity
+
+The product is **Loka Studio**. **Loka** names the editor and its canonical `.loka` world-file convention; it is not limited to fantasy settings. The public repository remains `world-builder` for descriptive portfolio discovery. Product naming does not assert exclusive ownership or trademark registration.
+
 ## V1 scope
 
 - Responsive browser application with private, account-owned worlds.
@@ -20,4 +24,4 @@ The map is an immersive 3D workspace, not a globe-scale simulator. Adjacent-area
 
 ## Approval
 
-Approved by the project owner on 2026-09-03. Public snapshot updated 2026-09-05.
+Approved by the project owner on 2026-09-03. Public snapshot updated 2026-09-08 to record the approved Loka Studio product identity.

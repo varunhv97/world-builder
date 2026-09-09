@@ -1,12 +1,14 @@
-# World Builder
+# Loka Studio
 
-A bold, local-first 3D world-building tool for creating, sculpting, and saving explorable worlds.
+A bold, local-first 3D world-building workspace for creating, sculpting, and saving explorable worlds.
 
-> **Status: active development.** The local 3D editor, portable `.loka` snapshots, multi-world browser library, and Supabase-ready cloud boundary are implemented. Hosted authentication and cloud synchronization await a configured Supabase project and deployment validation.
+> **Status: active development.** The local 3D editor, portable `.loka` snapshots, multi-world browser library, hosted authentication, and cloud checkpoint synchronization are implemented. Broader end-to-end validation, conflict recovery, and production hardening remain release-gate work.
+
+**Loka Studio** is the product identity. **Loka** is the editor and `.loka` is its project-owned world-file convention. The public repository intentionally remains [`world-builder`](https://github.com/varunhv97/world-builder); the name is descriptive and stable for portfolio discovery. “Loka” is used as a product name, not as a claim of exclusive ownership or trademark registration.
 
 ## The idea
 
-World Builder is a browser-based workspace for solo creators who want to make imagined geography tangible. A creator starts with a generated, bounded terrain area, then sculpts land, paints terrain, and adds geographic features directly in an immersive 3D canvas.
+Loka Studio is a browser-based workspace for solo creators who want to make imagined geography tangible. A creator starts with a generated, bounded terrain area, then sculpts land, paints terrain, and adds geographic features directly in an immersive 3D canvas.
 
 The first release is deliberately contained: one creator, private worlds, and a finite terrain area per world. It establishes a reliable editing and persistence foundation before expanding toward larger worlds, collaboration, or AI assistance.
 
